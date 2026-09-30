@@ -260,6 +260,15 @@ cosign verify-blob smtp2x-<version>.tgz \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```
 
+The versioned JAR and its bundle are verified with the same command:
+
+```bash
+cosign verify-blob smtp2x-<version>.jar \
+  --bundle smtp2x-<version>.jar.cosign.bundle \
+  --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+```
+
 ## Observability and API
 
 - Liveness: `/actuator/health/liveness`

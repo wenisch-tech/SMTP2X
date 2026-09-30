@@ -213,3 +213,12 @@ jobs:
               --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
               --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
             ```
+
+            Verify the application JAR in the same way:
+
+            ```bash
+            cosign verify-blob smtp2x-${{ inputs.version }}.jar \
+              --bundle smtp2x-${{ inputs.version }}.jar.cosign.bundle \
+              --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+            ```
