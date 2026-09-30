@@ -1,0 +1,4 @@
+package tech.wenisch.smtp2x.service;
+import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List; import java.util.UUID; import org.junit.jupiter.api.Test; import tech.wenisch.smtp2x.domain.RoutingRule;
+class RuleMatcherTest { @Test void matchesGlobalAndRecipientRules(){var matcher=new RuleMatcher();var global=new RoutingRule("global",true,null,"*@sender.example","alert",RoutingRule.SubjectMode.CONTAINS,List.of(UUID.randomUUID()));var recipient=new RoutingRule("recipient",false,"*@example.com",null,null,RoutingRule.SubjectMode.CONTAINS,List.of(UUID.randomUUID()));assertThat(matcher.matches(global,"robot@sender.example",List.of("ops@elsewhere.example"),"Alert: down")).isTrue();assertThat(matcher.matches(recipient,"robot@sender.example",List.of("ops@example.com"),"x")).isTrue();}}

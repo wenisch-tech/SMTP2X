@@ -1,0 +1,6 @@
+spring:
+  config: { activate: { on-profile: postgres } }
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/smtp2x}
+    username: ${SPRING_DATASOURCE_USERNAME:smtp2x}
+    password: ${SPRING_DATASOURCE_PASSWORD:smtp2x}

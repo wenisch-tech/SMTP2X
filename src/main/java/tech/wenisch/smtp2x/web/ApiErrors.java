@@ -1,0 +1,3 @@
+package tech.wenisch.smtp2x.web;
+import java.util.Map; import org.springframework.http.*; import org.springframework.web.bind.annotation.*; import tech.wenisch.smtp2x.service.DeliveryException;
+@RestControllerAdvice public class ApiErrors {@ExceptionHandler({IllegalArgumentException.class,DeliveryException.class})ResponseEntity<Map<String,String>> invalid(Exception e){return ResponseEntity.badRequest().body(Map.of("error",e.getMessage()));}@ExceptionHandler(java.util.NoSuchElementException.class)ResponseEntity<Map<String,String>> missing(){return ResponseEntity.status(404).body(Map.of("error","Not found"));}}

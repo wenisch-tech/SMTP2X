@@ -1,0 +1,4 @@
+CREATE TABLE smtp_credential (
+  id UUID PRIMARY KEY, username VARCHAR(320) NOT NULL UNIQUE, password_hash VARCHAR(200) NOT NULL,
+  enabled BOOLEAN NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);

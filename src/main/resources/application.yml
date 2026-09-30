@@ -1,0 +1,36 @@
+spring:
+  application: { name: SMTP2X }
+  datasource: { url: "jdbc:h2:file:./data/smtp2x;MODE=PostgreSQL;AUTO_SERVER=TRUE", username: sa, password: "" }
+  jpa: { open-in-view: false, hibernate: { ddl-auto: validate } }
+  flyway: { enabled: true }
+  servlet: { multipart: { max-file-size: 10MB, max-request-size: 11MB } }
+server: { forward-headers-strategy: framework }
+management:
+  endpoints: { web: { exposure: { include: health,info,prometheus } } }
+smtp2x:
+  data-directory: ${SMTP2X_DATA_DIRECTORY:./data}
+  security:
+    initial-admin-email: ${SMTP2X_ADMIN_EMAIL:admin@smtp2x.local}
+    initial-admin-password: ${SMTP2X_ADMIN_PASSWORD:}
+    oidc:
+      enabled: ${SMTP2X_SECURITY_OIDC_ENABLED:false}
+      role-mapping-enabled: ${SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED:false}
+  crypto:
+    key: ${SMTP2X_CRYPTO_KEY:}
+  smtp:
+    enabled: ${SMTP2X_SMTP_ENABLED:false}
+    port: ${SMTP2X_SMTP_PORT:2525}
+    max-message-bytes: ${SMTP2X_SMTP_MAX_MESSAGE_BYTES:10485760}
+    max-recipients: ${SMTP2X_SMTP_MAX_RECIPIENTS:100}
+    max-connections: ${SMTP2X_SMTP_MAX_CONNECTIONS:50}
+    authentication: ${SMTP2X_SMTP_AUTHENTICATION:DISABLED}
+    starttls: ${SMTP2X_SMTP_STARTTLS:DISABLED}
+    allowed-cidrs: ${SMTP2X_SMTP_ALLOWED_CIDRS:}
+    certificate-path: ${SMTP2X_SMTP_CERTIFICATE_PATH:}
+    private-key-path: ${SMTP2X_SMTP_PRIVATE_KEY_PATH:}
+    # STARTTLS uses a PKCS#12 keystore. The certificate/private-key fields are retained for external TLS termination documentation.
+    tls-keystore-path: ${SMTP2X_SMTP_TLS_KEYSTORE_PATH:}
+    tls-keystore-password: ${SMTP2X_SMTP_TLS_KEYSTORE_PASSWORD:}
+  retention:
+    content-days: ${SMTP2X_RETENTION_CONTENT_DAYS:30}
+    audit-days: ${SMTP2X_RETENTION_AUDIT_DAYS:365}
