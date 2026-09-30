@@ -35,10 +35,13 @@
         ><label
           >Action type<select name="type">
             <option value="GITLAB_ISSUE">GitLab issue</option>
+            <option value="GITHUB_ISSUE">GitHub issue</option>
+            <option value="FORGEJO_ISSUE">Forgejo issue</option>
+            <option value="MATTERMOST_MESSAGE">Mattermost message</option>
             <option value="WEBHOOK">Webhook</option>
           </select></label
         >
-        <fieldset id="gitlab-fields">
+        <fieldset id="gitlab-fields" data-action-fields="GITLAB_ISSUE">
           <label
             >GitLab base URL<input
               name="baseUrl"
@@ -51,7 +54,7 @@
               placeholder="platform/alerts"
               required /></label
           ><label
-            >Access token<input
+            >GitLab access token<input
               name="accessToken"
               type="password"
               required
@@ -70,7 +73,120 @@
           </button>
           <p id="preview-result" class="muted small" role="status"></p>
         </fieldset>
-        <fieldset id="webhook-fields" hidden disabled>
+        <fieldset data-action-fields="GITHUB_ISSUE" hidden disabled>
+          <label
+            >GitHub API URL<input
+              name="githubBaseUrl"
+              type="url"
+              value="https://api.github.com"
+              required /></label
+          ><label
+            >GitHub repository<input
+              name="githubRepository"
+              placeholder="owner/repository"
+              required /></label
+          ><label
+            >GitHub access token<input
+              name="githubAccessToken"
+              type="password"
+              required
+              autocomplete="new-password" /></label
+          ><label
+            >Title template<input
+              name="githubTitleTemplate"
+              value="{{subject}}"
+              required /></label
+          ><label
+            >Body template<textarea name="githubBodyTemplate" rows="4" required>
+{{body}}
+
+From: {{from}}
+Recipients: {{recipients}}</textarea></label
+          ><label
+            >Labels <span class="optional">one per line</span
+            ><textarea name="githubLabels" rows="2"></textarea></label
+          ><label
+            >Assignee usernames <span class="optional">one per line</span
+            ><textarea name="githubAssignees" rows="2"></textarea>
+          </label>
+        </fieldset>
+        <fieldset data-action-fields="FORGEJO_ISSUE" hidden disabled>
+          <label
+            >Forgejo base URL<input
+              name="forgejoBaseUrl"
+              type="url"
+              placeholder="https://forgejo.example.com"
+              required /></label
+          ><label
+            >Forgejo repository<input
+              name="forgejoRepository"
+              placeholder="owner/repository"
+              required /></label
+          ><label
+            >Forgejo access token<input
+              name="forgejoAccessToken"
+              type="password"
+              required
+              autocomplete="new-password" /></label
+          ><label
+            >Title template<input
+              name="forgejoTitleTemplate"
+              value="{{subject}}"
+              required /></label
+          ><label
+            >Body template<textarea
+              name="forgejoBodyTemplate"
+              rows="4"
+              required
+            >
+{{body}}
+
+From: {{from}}
+Recipients: {{recipients}}</textarea></label
+          ><label
+            >Label IDs <span class="optional">one numeric ID per line</span
+            ><textarea name="forgejoLabelIds" rows="2"></textarea></label
+          ><label
+            >Assignee usernames <span class="optional">one per line</span
+            ><textarea name="forgejoAssignees" rows="2"></textarea>
+          </label>
+        </fieldset>
+        <fieldset data-action-fields="MATTERMOST_MESSAGE" hidden disabled>
+          <label
+            >Mattermost incoming webhook URL<input
+              name="mattermostWebhookUrl"
+              type="url"
+              required
+              autocomplete="new-password"
+              placeholder="https://mattermost.example.com/hooks/…" /></label
+          ><label
+            >Message template<textarea
+              name="mattermostTextTemplate"
+              rows="5"
+              required
+            >
+### {{subject}}
+
+{{body}}
+
+_From: {{from}}_</textarea></label
+          ><label
+            >Channel <span class="optional">optional override</span
+            ><input name="mattermostChannel" placeholder="town-square" /></label
+          ><label
+            >Username <span class="optional">optional override</span
+            ><input name="mattermostUsername" placeholder="SMTP2X" /></label
+          ><label
+            >Icon URL <span class="optional">optional override</span
+            ><input name="mattermostIconUrl" type="url"
+          /></label>
+        </fieldset>
+        <fieldset
+          id="webhook-fields"
+          data-action-fields="WEBHOOK"
+          hidden
+          disabled
+        >
           <label
             >Webhook URL<input
               name="url"

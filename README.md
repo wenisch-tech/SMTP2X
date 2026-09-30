@@ -7,16 +7,17 @@
 
 **Turn SMTP notifications into work.**
 
-SMTP2X is a self-hosted gateway for applications that can only send SMTP notifications, while their users need GitLab issues, webhooks, and an auditable delivery history instead of another email inbox. It accepts messages over SMTP, evaluates shared routing rules, stores a durable copy, and delivers each selected action in the background.
+SMTP2X is a self-hosted gateway for applications that can only send SMTP notifications, while their users need GitLab, GitHub, or Forgejo issues, Mattermost messages, webhooks, and an auditable delivery history instead of another email inbox. It accepts messages over SMTP, evaluates shared routing rules, stores a durable copy, and delivers each selected action in the background.
 
-Its first-class integration is **GitLab issue creation**: actions can assign issues from SMTP envelope recipients, configured default assignees, or explicit email-to-GitLab-user mappings.
+The GitLab integration also supports recipient-based assignment: actions can assign issues from SMTP envelope recipients, configured default assignees, or explicit email-to-GitLab-user mappings.
 
 ![SMTP2X dashboard showing configured SMTP routes, shared actions, and delivery totals](docs/smtp2x-dashboard.png)
 
 ## Features
 
 - **SMTP gateway** — accepts SMTP transactions, including multiple `RCPT TO` recipients, parses MIME text/HTML messages and attachments, and never relays mail.
-- **GitLab issues first** — creates issues in GitLab.com or self-managed GitLab with a configurable project, title and description, labels, confidentiality, assignees, and optional attachment uploads.
+- **Issue trackers** — creates templated issues in GitLab, GitHub, and Forgejo, including their self-hosted variants.
+- **Mattermost messages** — posts templated Markdown messages through an incoming webhook, with optional channel, username, and icon overrides.
 - **Recipient-based assignees** — combines SMTP recipients with default assignee email addresses; resolves mappings before exact GitLab email lookup; deduplicates GitLab user IDs; creates the issue unassigned if none resolve.
 - **Webhooks** — delivers a JSON representation of the accepted message to HTTP endpoints, with configurable headers and bearer authentication.
 - **Visual routing workspace** — explore SMTP → rules → actions on an interactive dashboard, select actions by name, and create actions directly inside a rule draft.
@@ -36,6 +37,9 @@ flowchart LR
   S --> R[Routing rules]
   R --> Q[(Durable delivery jobs)]
   Q --> G[GitLab issue]
+  Q --> GH[GitHub issue]
+  Q --> F[Forgejo issue]
+  Q --> MM[Mattermost message]
   Q --> W[Webhook]
   U[Admin and viewers] --> UI[SMTP2X UI and API]
   UI --> M
@@ -48,7 +52,7 @@ SMTP2X is deliberately a single-instance application in this release. A persiste
 
 SMTP2X creates a local administrator on first start with `admin@smtp2x.local` / `admin`. Set `SMTP2X_ADMIN_PASSWORD` before startup to choose another password. When that environment variable is present, SMTP2X applies it to the bootstrap administrator on **every** startup, so it is an intentional deployment-level password override.
 
-Integration secrets are encrypted with a 32-byte AES key. If `SMTP2X_CRYPTO_KEY` is absent, SMTP2X creates one at `/app/data/encryption.key` and reuses it on later starts. Keep the data volume: losing that file makes existing GitLab and webhook credentials unreadable. Set `SMTP2X_CRYPTO_KEY` when your secret-management policy requires the key to live outside the application volume.
+Integration secrets are encrypted with a 32-byte AES key. This includes GitLab, GitHub, and Forgejo tokens, generic webhook bearer tokens, and complete Mattermost incoming-webhook URLs. If `SMTP2X_CRYPTO_KEY` is absent, SMTP2X creates one at `/app/data/encryption.key` and reuses it on later starts. Keep the data volume: losing that file makes existing integration credentials unreadable. Set `SMTP2X_CRYPTO_KEY` when your secret-management policy requires the key to live outside the application volume.
 
 ### Docker
 
@@ -64,7 +68,7 @@ docker run --rm \
   ghcr.io/wenisch-tech/smtp2x:latest
 ```
 
-Open <http://localhost:8080> and sign in as `admin@smtp2x.local` / `admin`. Set `SMTP2X_ADMIN_PASSWORD='change-me-now'` in a real deployment, or change the password in **Administration**. Create a GitLab action and a routing rule before pointing an application at `localhost:2525`; SMTP2X correctly rejects messages that match no enabled action.
+Open <http://localhost:8080> and sign in as `admin@smtp2x.local` / `admin`. Set `SMTP2X_ADMIN_PASSWORD='change-me-now'` in a real deployment, or change the password in **Administration**. Create an action and a routing rule before pointing an application at `localhost:2525`; SMTP2X correctly rejects messages that match no enabled action.
 
 ### Docker Compose
 
@@ -88,7 +92,7 @@ The SMTP listener starts by default on port `2525`. Set `SMTP2X_SMTP_ENABLED=fal
 
 ## Configure GitLab delivery
 
-Open **Routing rules**, choose **Create rule**, and enter the matching conditions. Under **Run these actions**, select actions by name or choose **Create action** to configure a GitLab issue or webhook without leaving your draft. Newly created actions are selected automatically; **Save rule** connects them. Actions are reusable and remain available if you cancel a rule draft.
+Open **Routing rules**, choose **Create rule**, and enter the matching conditions. Under **Run these actions**, select actions by name or choose **Create action** to configure an issue tracker, Mattermost message, or webhook without leaving your draft. Newly created actions are selected automatically; **Save rule** connects them. Actions are reusable and remain available if you cancel a rule draft.
 
 You can also create actions on **Actions**, where each action lists the rules that use it. Edit an existing rule to change its conditions, selected actions, or enabled state.
 
@@ -117,6 +121,42 @@ Private GitLab email addresses are not generally visible to ordinary project tok
 2. Configure a GitLab action for `platform/alerts`, with `support@example.com` as a default assignee and **Use recipient as assignee** enabled. Create the action, then save the rule.
 3. Configure your existing application with SMTP host `smtp2x.example.com`, port `2525`, and recipient `alerts@example.com`.
 4. A message addressed to `alice@example.com` and `alerts@example.com` is accepted once. The resulting GitLab issue is assigned to Alice when resolvable, plus Support when resolvable.
+
+## Configure GitHub Issues
+
+Choose **GitHub issue** when creating an action. Configure:
+
+| Setting | Description |
+|---|---|
+| GitHub API URL | Keep `https://api.github.com` for GitHub.com. For GitHub Enterprise Server, enter its REST API root, normally `https://github.example.com/api/v3`. |
+| Repository | Repository in `owner/repository` form. |
+| Access token | Fine-grained personal, GitHub App user, or GitHub App installation token with repository **Issues: write** permission. It is encrypted before storage. |
+| Title and body templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
+| Labels | Label names, one per line. The labels must already exist in the repository. |
+| Assignees | GitHub usernames, one per line. The token must be allowed to assign them. |
+
+SMTP2X calls GitHub's versioned `POST /repos/{owner}/{repo}/issues` API. A rejected configuration is recorded as a permanent delivery failure; rate limits and server failures use the normal retry schedule. See [GitHub's create-issue API documentation](https://docs.github.com/en/rest/issues/issues#create-an-issue).
+
+## Configure Forgejo Issues
+
+Choose **Forgejo issue** when creating an action. Configure:
+
+| Setting | Description |
+|---|---|
+| Forgejo base URL | Root URL of the Forgejo instance, such as `https://code.example.com`. |
+| Repository | Repository in `owner/repository` form. |
+| Access token | Forgejo access token with permission to write issues in the selected repository. It is encrypted before storage. |
+| Title and body templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
+| Label IDs | Numeric Forgejo label IDs, one per line. |
+| Assignees | Forgejo usernames, one per line. |
+
+SMTP2X calls `POST /api/v1/repos/{owner}/{repo}/issues` and authenticates through the HTTP `Authorization` header. Forgejo exposes the instance-specific OpenAPI reference under `/api/swagger` when Swagger is enabled. See the [Forgejo API guide](https://forgejo.org/docs/latest/user/api/) for authentication and instance API documentation.
+
+## Configure Mattermost Messages
+
+Create an incoming webhook in Mattermost, then choose **Mattermost message** in SMTP2X and paste the generated URL. The full URL contains the webhook credential and is encrypted before storage; SMTP2X never places it in delivery links or dashboard responses.
+
+The message template supports Mattermost Markdown and `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. Channel, username, and icon URL overrides are optional and require the corresponding override settings to be enabled by the Mattermost administrator. See [Mattermost incoming webhooks](https://developers.mattermost.com/integrate/webhooks/incoming/) for server setup.
 
 ## SMTP configuration
 
@@ -294,7 +334,7 @@ The UI and `/api/v1` require an authenticated Viewer or Admin session. Administr
 mvn verify
 ```
 
-The test suite covers recipient-plus-default GitLab assignee resolution, routing configuration, dashboard summaries, and access control. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
+The test suite covers GitLab assignee resolution; GitHub, Forgejo, Mattermost, and generic-webhook payloads; encrypted credential handling; routing configuration; dashboard summaries; and access control. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
 
 ### Browser checks and documentation screenshots
 

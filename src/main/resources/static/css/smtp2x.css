@@ -434,6 +434,18 @@ p {
   color: #7e69c6;
   background: #f1edfc;
 }
+.node-icon.github_issue {
+  color: #27364d;
+  background: #edf0f4;
+}
+.node-icon.forgejo_issue {
+  color: #5f7d31;
+  background: #f0f6e7;
+}
+.node-icon.mattermost_message {
+  color: #2367b2;
+  background: #e9f3fd;
+}
 .node-sub {
   font-size: 10px;
   color: #7f8da2;
@@ -875,6 +887,7 @@ dialog {
   padding: 27px;
   width: min(530px, calc(100vw - 32px));
   max-height: 90vh;
+  overflow-y: auto;
   color: var(--ink);
   box-shadow: 0 24px 100px #13264340;
 }

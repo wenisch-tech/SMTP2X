@@ -110,7 +110,7 @@ test("rule edit supports multiple actions, inline webhook creation, and persiste
   await page.getByLabel("Action name", { exact: true }).fill("Browser webhook");
   await page.getByLabel("Action type").selectOption("WEBHOOK");
   await page
-    .getByLabel("Webhook URL")
+    .getByLabel("Webhook URL", { exact: true })
     .fill("https://hooks.example.com/browser");
   await page
     .locator("#action-dialog")
@@ -316,7 +316,7 @@ test("GitLab action validation, type switching, and escaped names", async ({
     .fill("<img src=x onerror=alert(1)>");
   await page.getByLabel("Project ID or path").fill("platform/browser-check");
   await page
-    .getByLabel("Access token", { exact: true })
+    .getByLabel("GitLab access token", { exact: true })
     .fill("fictional-test-token");
   await page.getByLabel("Email mappings").fill("{invalid");
   await form
@@ -345,4 +345,82 @@ test("GitLab action validation, type switching, and escaped names", async ({
     "<img src=x onerror=alert(1)>",
   );
   await expect(page.locator("#action-list img")).toHaveCount(0);
+});
+
+test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/actions");
+
+  const open = async (type, name) => {
+    await page
+      .getByRole("button", { name: "Create action", exact: false })
+      .click();
+    await page.getByLabel("Action name", { exact: true }).fill(name);
+    await page.getByLabel("Action type").selectOption(type);
+  };
+  const create = () =>
+    page
+      .locator("#action-form")
+      .getByRole("button", { name: "Create action", exact: true })
+      .click();
+
+  await open("GITHUB_ISSUE", "Browser GitHub issues");
+  await expect(page.getByLabel("GitLab base URL")).not.toBeVisible();
+  await page
+    .getByLabel("GitHub repository", { exact: true })
+    .fill("acme/browser");
+  await page
+    .getByLabel("GitHub access token", { exact: true })
+    .fill("github-secret");
+  await page.getByLabel("Labels").fill("smtp\nproduction");
+  await create();
+  await expect(page.locator("#action-list")).toContainText(
+    "Browser GitHub issues",
+  );
+
+  await open("FORGEJO_ISSUE", "Browser Forgejo issues");
+  await page.getByLabel("Forgejo base URL").fill("https://forgejo.example.com");
+  await page
+    .getByLabel("Forgejo repository", { exact: true })
+    .fill("acme/browser");
+  await page
+    .getByLabel("Forgejo access token", { exact: true })
+    .fill("forgejo-secret");
+  await page.getByLabel("Label IDs").fill("not-a-number");
+  await create();
+  await expect(page.locator("#action-error")).toContainText("positive numbers");
+  await page.getByLabel("Label IDs").fill("7\n12");
+  await create();
+  await expect(page.locator("#action-list")).toContainText(
+    "Browser Forgejo issues",
+  );
+
+  await open("MATTERMOST_MESSAGE", "Browser Mattermost");
+  await page
+    .getByLabel("Mattermost incoming webhook URL")
+    .fill("https://mattermost.example.com/hooks/browser-secret");
+  await page.getByLabel("Channel").fill("ops-alerts");
+  await create();
+  await expect(page.locator("#action-list")).toContainText(
+    "Browser Mattermost",
+  );
+
+  const actions = await page.evaluate(() => window.smtp2x.api("/actions"));
+  const github = actions.find(
+    (action) => action.name === "Browser GitHub issues",
+  );
+  const forgejo = actions.find(
+    (action) => action.name === "Browser Forgejo issues",
+  );
+  const mattermost = actions.find(
+    (action) => action.name === "Browser Mattermost",
+  );
+  expect(github.configuration.accessToken).toBe("");
+  expect(github.configuration.accessTokenConfigured).toBe(true);
+  expect(forgejo.configuration.accessToken).toBe("");
+  expect(forgejo.configuration.accessTokenConfigured).toBe(true);
+  expect(mattermost.configuration.webhookUrl).toBe("");
+  expect(mattermost.configuration.webhookUrlConfigured).toBe(true);
 });

@@ -10,11 +10,24 @@ const escape = (value) =>
       ],
   );
 const admin = document.body.dataset.admin === "true";
-const typeName = (type) =>
-  type === "GITLAB_ISSUE" ? "GitLab issue" : "Webhook";
+const TYPE_NAMES = {
+  GITLAB_ISSUE: "GitLab issue",
+  GITHUB_ISSUE: "GitHub issue",
+  FORGEJO_ISSUE: "Forgejo issue",
+  MATTERMOST_MESSAGE: "Mattermost message",
+  WEBHOOK: "Webhook",
+};
+const typeName = (type) => TYPE_NAMES[type] || type;
 const svgIcon = (name) =>
   `<svg class="icon" aria-hidden="true"><use href="/css/icons.svg#${name}"></use></svg>`;
-const icon = (type) => svgIcon(type === "GITLAB_ISSUE" ? "gitlab" : "webhook");
+const TYPE_ICONS = {
+  GITLAB_ISSUE: "gitlab",
+  GITHUB_ISSUE: "github",
+  FORGEJO_ISSUE: "forgejo",
+  MATTERMOST_MESSAGE: "mattermost",
+  WEBHOOK: "webhook",
+};
+const icon = (type) => svgIcon(TYPE_ICONS[type] || "action");
 const instant = (value) =>
   new Date(typeof value === "number" ? value * 1000 : value);
 const date = (value) =>
@@ -67,12 +80,21 @@ async function api(path, options = {}) {
 window.smtp2x = { api };
 function destination(action) {
   if (action.destination) return action.destination;
+  if (action.type === "MATTERMOST_MESSAGE")
+    return "Mattermost incoming webhook";
   try {
-    const c = action.configuration,
-      url = new URL(action.type === "GITLAB_ISSUE" ? c.baseUrl : c.url);
-    return (
-      url.hostname + (action.type === "GITLAB_ISSUE" ? " · " + c.project : "")
+    const c = action.configuration;
+    const issue = ["GITLAB_ISSUE", "GITHUB_ISSUE", "FORGEJO_ISSUE"].includes(
+      action.type,
     );
+    const url = new URL(issue ? c.baseUrl : c.url);
+    const target =
+      action.type === "GITLAB_ISSUE"
+        ? c.project
+        : ["GITHUB_ISSUE", "FORGEJO_ISSUE"].includes(action.type)
+          ? c.repository
+          : "";
+    return url.hostname + (target ? " · " + target : "");
   } catch {
     return "Destination configured";
   }
@@ -104,28 +126,74 @@ function actionDialog(onCreated) {
   const form = $("#action-form"),
     field = (name) => form.elements.namedItem(name);
   const sync = () => {
-    const gitlab = field("type").value === "GITLAB_ISSUE";
-    $("#gitlab-fields").hidden = !gitlab;
-    $("#gitlab-fields").disabled = !gitlab;
-    $("#webhook-fields").hidden = gitlab;
-    $("#webhook-fields").disabled = gitlab;
+    const type = field("type").value;
+    $$("[data-action-fields]", form).forEach((fields) => {
+      const active = fields.dataset.actionFields === type;
+      fields.hidden = !active;
+      fields.disabled = !active;
+    });
     $("#preview-result").textContent = "";
     notice("", false, "#action-error");
   };
-  const configuration = () =>
-    field("type").value === "GITLAB_ISSUE"
-      ? {
+  const lines = (name) =>
+    field(name)
+      .value.split("\n")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  const configuration = () => {
+    switch (field("type").value) {
+      case "GITLAB_ISSUE":
+        return {
           baseUrl: field("baseUrl").value,
           project: field("project").value,
           accessToken: field("accessToken").value,
           useRecipient: field("useRecipient").checked,
-          defaultAssigneeEmails: field("defaults")
-            .value.split("\n")
-            .map((x) => x.trim())
-            .filter(Boolean),
+          defaultAssigneeEmails: lines("defaults"),
           assigneeEmailMappings: JSON.parse(field("mappings").value || "{}"),
-        }
-      : { url: field("url").value, bearerToken: field("bearerToken").value };
+        };
+      case "GITHUB_ISSUE":
+        return {
+          baseUrl: field("githubBaseUrl").value,
+          repository: field("githubRepository").value,
+          accessToken: field("githubAccessToken").value,
+          titleTemplate: field("githubTitleTemplate").value,
+          bodyTemplate: field("githubBodyTemplate").value,
+          labels: lines("githubLabels"),
+          assignees: lines("githubAssignees"),
+        };
+      case "FORGEJO_ISSUE": {
+        const labelIds = lines("forgejoLabelIds").map(Number);
+        if (
+          labelIds.some((value) => !Number.isSafeInteger(value) || value <= 0)
+        )
+          throw new Error(
+            "Forgejo label IDs must be positive numbers, one per line.",
+          );
+        return {
+          baseUrl: field("forgejoBaseUrl").value,
+          repository: field("forgejoRepository").value,
+          accessToken: field("forgejoAccessToken").value,
+          titleTemplate: field("forgejoTitleTemplate").value,
+          bodyTemplate: field("forgejoBodyTemplate").value,
+          labelIds,
+          assignees: lines("forgejoAssignees"),
+        };
+      }
+      case "MATTERMOST_MESSAGE":
+        return {
+          webhookUrl: field("mattermostWebhookUrl").value,
+          textTemplate: field("mattermostTextTemplate").value,
+          channel: field("mattermostChannel").value,
+          username: field("mattermostUsername").value,
+          iconUrl: field("mattermostIconUrl").value,
+        };
+      default:
+        return {
+          url: field("url").value,
+          bearerToken: field("bearerToken").value,
+        };
+    }
+  };
   field("type").addEventListener("change", sync);
   ["#close-action", "#cancel-action"].forEach(
     (s) => ($(s).onclick = () => dialog.close()),
@@ -355,7 +423,7 @@ async function actionsPage() {
       actions
         .map(
           (a) =>
-            `<article class="card" id="action-${a.id}"><div class="section-heading"><div class="node-header"><span class="node-icon ${a.type === "GITLAB_ISSUE" ? "gitlab" : "webhook"}">${icon(a.type)}</span><h2>${escape(a.name)}</h2></div>${state(a.enabled)}</div><span class="badge blue">${typeName(a.type)}</span><p class="action-destination">${escape(destination(a))}</p><div class="linked-rules"><span class="muted small">USED BY ROUTING RULES</span><div>${
+            `<article class="card" id="action-${a.id}"><div class="section-heading"><div class="node-header"><span class="node-icon ${a.type.toLowerCase()}">${icon(a.type)}</span><h2>${escape(a.name)}</h2></div>${state(a.enabled)}</div><span class="badge blue">${typeName(a.type)}</span><p class="action-destination">${escape(destination(a))}</p><div class="linked-rules"><span class="muted small">USED BY ROUTING RULES</span><div>${
               rules
                 .filter((r) => r.actionIds.includes(a.id))
                 .map(
@@ -369,7 +437,7 @@ async function actionsPage() {
         .join("") ||
       empty(
         "Connect your first destination",
-        "Create a GitLab issue action or webhook, then attach it to a rule.",
+        "Create an issue, Mattermost, or webhook action, then attach it to a rule.",
       );
   }
   render();
@@ -394,7 +462,7 @@ async function dashboardPage() {
       : data.actions.find((a) => key("action", a.id) === k);
   function node(kind, item) {
     const isRule = kind === "rule";
-    return `<button class="flow-node ${item.enabled ? "" : "disabled"}" data-node="${key(kind, item.id)}" aria-pressed="false"><div class="node-header"><span class="node-icon ${!isRule ? (item.type === "GITLAB_ISSUE" ? "gitlab" : "webhook") : ""}" aria-hidden="true">${isRule ? svgIcon("flow") : icon(item.type)}</span><span class="node-name">${escape(item.name)}</span></div><div class="node-sub">${escape(isRule ? conditions(item) : item.missing ? "Remove this reference in the rule editor." : typeName(item.type) + " · " + destination(item))}</div><div class="node-state"><i class="dot ${item.enabled ? "" : "gray"}"></i>${item.missing ? "Unavailable action" : item.enabled ? "Enabled" : "Disabled"}</div></button>`;
+    return `<button class="flow-node ${item.enabled ? "" : "disabled"}" data-node="${key(kind, item.id)}" aria-pressed="false"><div class="node-header"><span class="node-icon ${!isRule && item.type ? item.type.toLowerCase() : ""}" aria-hidden="true">${isRule ? svgIcon("flow") : icon(item.type)}</span><span class="node-name">${escape(item.name)}</span></div><div class="node-sub">${escape(isRule ? conditions(item) : item.missing ? "Remove this reference in the rule editor." : typeName(item.type) + " · " + destination(item))}</div><div class="node-state"><i class="dot ${item.enabled ? "" : "gray"}"></i>${item.missing ? "Unavailable action" : item.enabled ? "Enabled" : "Disabled"}</div></button>`;
   }
   function renderFlow() {
     const missing = [...new Set(data.rules.flatMap((r) => r.actionIds))]
@@ -410,7 +478,7 @@ async function dashboardPage() {
       $("#flow").innerHTML =
         empty(
           "Build your first route",
-          "Connect incoming email to a GitLab issue or webhook.",
+          "Connect incoming email to an issue, Mattermost message, or webhook.",
         ) +
         (admin
           ? '<div style="text-align:center"><a class="btn" href="/rules">Create a routing rule ↗</a></div>'

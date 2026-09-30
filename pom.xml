@@ -3,10 +3,10 @@
   <modelVersion>4.0.0</modelVersion>
   <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>4.1.1</version><relativePath/></parent>
   <groupId>tech.wenisch</groupId><artifactId>smtp2x</artifactId><version>0.1.0-SNAPSHOT</version>
-  <name>SMTP2X</name><description>Turn SMTP notifications into GitLab issues and webhooks</description>
+  <name>SMTP2X</name><description>Turn SMTP notifications into issues, Mattermost messages, and webhooks</description>
   <properties><java.version>25</java.version><subethasmtp.version>7.1.7</subethasmtp.version><springdoc.version>3.1.1</springdoc.version></properties>
   <dependencies>
-    <!-- Spring Boot 4 defaults to Jackson 3; SMTP2X uses the stable Jackson 2 tree for GitLab payloads. -->
+    <!-- Spring Boot 4 defaults to Jackson 3; SMTP2X uses the stable Jackson 2 tree for integration payloads. -->
     <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>2.22.3</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-thymeleaf</artifactId></dependency>

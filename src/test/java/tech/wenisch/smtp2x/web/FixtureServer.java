@@ -35,9 +35,13 @@ public class FixtureServer {
       var gitlab=actions.save(new ActionConfiguration("Platform issue tracker",ActionType.GITLAB_ISSUE,"{\"baseUrl\":\"https://gitlab.example.com\",\"project\":\"platform/operations\"}"));
       var webhook=actions.save(new ActionConfiguration("Team notifications",ActionType.WEBHOOK,"{\"url\":\"https://hooks.example.com/team\"}"));
       var support=actions.save(new ActionConfiguration("Customer support",ActionType.GITLAB_ISSUE,"{\"baseUrl\":\"https://gitlab.example.com\",\"project\":\"support/inbox\"}"));
+      var github=actions.save(new ActionConfiguration("GitHub engineering backlog",ActionType.GITHUB_ISSUE,"{\"baseUrl\":\"https://api.github.com\",\"repository\":\"acme/engineering\",\"accessToken\":\"fixture-only\"}"));
+      var forgejo=actions.save(new ActionConfiguration("Forgejo operations",ActionType.FORGEJO_ISSUE,"{\"baseUrl\":\"https://code.example.com\",\"repository\":\"operations/incidents\",\"accessToken\":\"fixture-only\"}"));
+      var mattermost=actions.save(new ActionConfiguration("Mattermost on-call",ActionType.MATTERMOST_MESSAGE,"{\"webhookUrl\":\"fixture-only\",\"textTemplate\":\"{{subject}}\"}"));
       var archive=new ActionConfiguration("Legacy incident feed",ActionType.WEBHOOK,"{\"url\":\"https://legacy.example.com/events\"}");archive.update(archive.getName(),false,archive.getConfigurationJson());archive=actions.save(archive);
       rules.save(new RoutingRule("Infrastructure alerts",false,"alerts@example.com","*@monitoring.example.com","production",RoutingRule.SubjectMode.CONTAINS,List.of(gitlab.getId(),webhook.getId())));
       rules.save(new RoutingRule("Customer requests",false,"support@example.com",null,null,RoutingRule.SubjectMode.CONTAINS,List.of(support.getId(),webhook.getId())));
+      rules.save(new RoutingRule("Engineering incidents",false,"engineering@example.com",null,"incident",RoutingRule.SubjectMode.CONTAINS,List.of(github.getId(),forgejo.getId(),mattermost.getId())));
       var paused=new RoutingRule("Legacy monitoring",false,"legacy@example.com",null,null,RoutingRule.SubjectMode.CONTAINS,List.of(archive.getId()));paused.update(paused.getName(),false,false,paused.getRecipientPattern(),null,null,RoutingRule.SubjectMode.CONTAINS,paused.getActionIds());rules.save(paused);
       var now=Instant.parse("2026-09-30T08:42:00Z");
       String[] subjects={"Production API · latency above threshold","New support request · workspace access","Production database · backup completed","New support request · delivery setup","Production worker · queue recovered"};

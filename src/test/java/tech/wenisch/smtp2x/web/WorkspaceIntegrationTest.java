@@ -68,6 +68,39 @@ class WorkspaceIntegrationTest {
     mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Paused\",\"type\":\"WEBHOOK\",\"enabled\":false,\"configuration\":{\"url\":\"https://example.com/hook\"}}"))
       .andExpect(status().isCreated()).andExpect(jsonPath("$.enabled").value(false));
   }
+  @Test void mattermostWebhookUrlIsEncryptedAndRedacted() throws Exception {
+    var configuration=json.createObjectNode();
+    configuration.put("webhookUrl","https://mattermost.example.com/hooks/super-secret-token");
+    configuration.put("textTemplate","{{subject}}");
+    var request=json.createObjectNode();
+    request.put("name","Mattermost on-call");request.put("type","MATTERMOST_MESSAGE");request.put("enabled",true);
+    request.set("configuration",configuration);
+    mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isCreated())
+      .andExpect(jsonPath("$.configuration.webhookUrl").value(""))
+      .andExpect(jsonPath("$.configuration.webhookUrlConfigured").value(true));
+    assertThat(actions.findAll().getFirst().getConfigurationJson())
+      .contains("enc:").doesNotContain("super-secret-token");
+    var dashboard=mvc.perform(get("/api/v1/dashboard").with(user(viewer).roles("VIEWER")))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.actions[0].destination").value("Mattermost incoming webhook"))
+      .andReturn().getResponse().getContentAsString();
+    assertThat(dashboard).doesNotContain("super-secret-token","webhookUrl","enc:");
+  }
+  @Test void issueActionsValidateRepositoryAndRequiredCredentials() throws Exception {
+    var configuration=json.createObjectNode();
+    configuration.put("baseUrl","https://api.github.com");
+    configuration.put("repository","missing-owner-separator");
+    configuration.put("accessToken","secret");
+    var request=json.createObjectNode();
+    request.put("name","GitHub");request.put("type","GITHUB_ISSUE");request.put("enabled",true);
+    request.set("configuration",configuration);
+    mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").value("GitHub repository must use owner/repository"));
+  }
   @Test void dashboardAggregatesAreBoundedAndExcludeSensitiveData() throws Exception {
     var a=action("Ops");
     rules.save(new RoutingRule("Alerts",true,null,null,null,RoutingRule.SubjectMode.CONTAINS,List.of(a.getId())));

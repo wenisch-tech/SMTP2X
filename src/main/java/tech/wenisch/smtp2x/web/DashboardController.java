@@ -43,10 +43,21 @@ public class DashboardController {
   private String destination(ActionConfiguration a) {
     try {
       var c=json.readTree(a.getConfigurationJson());
-      var uri=URI.create(c.path(a.getType()==ActionType.GITLAB_ISSUE?"baseUrl":"url").asText());
+      if(a.getType()==ActionType.MATTERMOST_MESSAGE) return "Mattermost incoming webhook";
+      String urlField=switch(a.getType()){
+        case GITLAB_ISSUE,GITHUB_ISSUE,FORGEJO_ISSUE -> "baseUrl";
+        case WEBHOOK -> "url";
+        case MATTERMOST_MESSAGE -> throw new IllegalStateException();
+      };
+      var uri=URI.create(c.path(urlField).asText());
       if(uri.getHost()==null || !("https".equalsIgnoreCase(uri.getScheme())||"http".equalsIgnoreCase(uri.getScheme()))) return "Destination configured";
-      // Only the host is exposed: paths, user info, query strings and fragments may contain secrets.
-      return uri.getHost()+(a.getType()==ActionType.GITLAB_ISSUE?" · "+c.path("project").asText():"");
+      // Only the host and non-secret project/repository name are exposed.
+      String target=switch(a.getType()){
+        case GITLAB_ISSUE -> c.path("project").asText();
+        case GITHUB_ISSUE,FORGEJO_ISSUE -> c.path("repository").asText();
+        default -> "";
+      };
+      return uri.getHost()+(target.isBlank()?"":" · "+target);
     } catch(Exception e) { return "Destination configured"; }
   }
 }
