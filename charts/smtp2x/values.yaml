@@ -1,4 +1,4 @@
-image: {repository: ghcr.io/wenisch-tech/smtp2x, tag: "0.1.0", pullPolicy: IfNotPresent}
+image: {repository: ghcr.io/wenisch-tech/smtp2x, tag: "0.1.1", pullPolicy: IfNotPresent}
 replicaCount: 1
 service:
   http: {type: ClusterIP, port: 8080}
