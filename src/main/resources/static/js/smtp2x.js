@@ -141,9 +141,11 @@ function actionDialog(onCreated) {
       .map((value) => value.trim())
       .filter(Boolean);
   const configuration = () => {
+    const common = { ignoreTlsErrors: field("ignoreTlsErrors").checked };
     switch (field("type").value) {
       case "GITLAB_ISSUE":
         return {
+          ...common,
           baseUrl: field("baseUrl").value,
           project: field("project").value,
           accessToken: field("accessToken").value,
@@ -153,6 +155,7 @@ function actionDialog(onCreated) {
         };
       case "GITHUB_ISSUE":
         return {
+          ...common,
           baseUrl: field("githubBaseUrl").value,
           repository: field("githubRepository").value,
           accessToken: field("githubAccessToken").value,
@@ -170,6 +173,7 @@ function actionDialog(onCreated) {
             "Forgejo label IDs must be positive numbers, one per line.",
           );
         return {
+          ...common,
           baseUrl: field("forgejoBaseUrl").value,
           repository: field("forgejoRepository").value,
           accessToken: field("forgejoAccessToken").value,
@@ -181,6 +185,7 @@ function actionDialog(onCreated) {
       }
       case "MATTERMOST_MESSAGE":
         return {
+          ...common,
           webhookUrl: field("mattermostWebhookUrl").value,
           textTemplate: field("mattermostTextTemplate").value,
           channel: field("mattermostChannel").value,
@@ -189,6 +194,7 @@ function actionDialog(onCreated) {
         };
       default:
         return {
+          ...common,
           url: field("url").value,
           bearerToken: field("bearerToken").value,
         };

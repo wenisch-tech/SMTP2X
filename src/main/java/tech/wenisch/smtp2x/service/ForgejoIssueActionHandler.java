@@ -11,18 +11,19 @@ import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import tech.wenisch.smtp2x.domain.ActionType;
 
 @Component
 public class ForgejoIssueActionHandler implements ActionHandler {
   private final ObjectMapper json;
   private final SecretCipher secrets;
-  private final RestClient client = RestClient.builder().build();
+  private final ActionHttpClientFactory clients;
 
-  public ForgejoIssueActionHandler(ObjectMapper json, SecretCipher secrets) {
+  public ForgejoIssueActionHandler(ObjectMapper json, SecretCipher secrets,
+      ActionHttpClientFactory clients) {
     this.json = json;
     this.secrets = secrets;
+    this.clients = clients;
   }
 
   @Override public ActionType type() { return ActionType.FORGEJO_ISSUE; }
@@ -46,7 +47,7 @@ public class ForgejoIssueActionHandler implements ActionHandler {
     }
     String url = base + "/api/v1/repos/" + segment(repository[0]) + "/" + segment(repository[1]) + "/issues";
     try {
-      JsonNode response = client.post().uri(url)
+      JsonNode response = clients.forConfiguration(config).post().uri(url)
           .header(HttpHeaders.AUTHORIZATION, "token " + token)
           .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
           .contentType(MediaType.APPLICATION_JSON)

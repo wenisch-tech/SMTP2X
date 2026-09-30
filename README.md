@@ -90,7 +90,7 @@ mvn spring-boot:run
 
 The SMTP listener starts by default on port `2525`. Set `SMTP2X_SMTP_ENABLED=false` when you only want to configure or inspect SMTP2X without accepting SMTP traffic.
 
-## Configure GitLab delivery
+## Configure delivery
 
 Open **Routing rules**, choose **Create rule**, and enter the matching conditions. Under **Run these actions**, select actions by name or choose **Create action** to configure an issue tracker, Mattermost message, or webhook without leaving your draft. Newly created actions are selected automatically; **Save rule** connects them. Actions are reusable and remain available if you cancel a rule draft.
 
@@ -99,6 +99,8 @@ You can also create actions on **Actions**, where each action lists the rules th
 ![Rule editor with named actions selected and inline action creation](docs/smtp2x-rules.png)
 
 The dashboard’s **Configured routing** view shows the current configuration. Click a rule or action to highlight its connections and inspect its details. Delivery totals and recent activity are shown separately and refresh every 30 seconds while the page is visible; they are not historical per-rule match counts.
+
+Every action includes **Ignore TLS certificate errors** for internal services that use a self-signed or otherwise untrusted certificate. It trusts any server certificate and skips hostname verification for that action only. Leave it disabled unless you control the destination and network; strict TLS validation remains the default.
 
 The GitLab action needs:
 
@@ -334,7 +336,7 @@ The UI and `/api/v1` require an authenticated Viewer or Admin session. Administr
 mvn verify
 ```
 
-The test suite covers GitLab assignee resolution; GitHub, Forgejo, Mattermost, and generic-webhook payloads; encrypted credential handling; routing configuration; dashboard summaries; and access control. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
+The test suite covers GitLab assignee resolution; GitHub, Forgejo, Mattermost, and generic-webhook payloads; strict and explicitly ignored TLS certificate validation; encrypted credential handling; routing configuration; dashboard summaries; and access control. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
 
 ### Browser checks and documentation screenshots
 

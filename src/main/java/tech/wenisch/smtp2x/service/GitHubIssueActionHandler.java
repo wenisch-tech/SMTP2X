@@ -11,7 +11,6 @@ import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import tech.wenisch.smtp2x.domain.ActionType;
 
 @Component
@@ -19,11 +18,13 @@ public class GitHubIssueActionHandler implements ActionHandler {
   private static final String API_VERSION = "2026-03-10";
   private final ObjectMapper json;
   private final SecretCipher secrets;
-  private final RestClient client = RestClient.builder().build();
+  private final ActionHttpClientFactory clients;
 
-  public GitHubIssueActionHandler(ObjectMapper json, SecretCipher secrets) {
+  public GitHubIssueActionHandler(ObjectMapper json, SecretCipher secrets,
+      ActionHttpClientFactory clients) {
     this.json = json;
     this.secrets = secrets;
+    this.clients = clients;
   }
 
   @Override public ActionType type() { return ActionType.GITHUB_ISSUE; }
@@ -40,7 +41,7 @@ public class GitHubIssueActionHandler implements ActionHandler {
     copyStrings(config, issue, "assignees");
     String url = api + "/repos/" + segment(repository[0]) + "/" + segment(repository[1]) + "/issues";
     try {
-      JsonNode response = client.post().uri(url)
+      JsonNode response = clients.forConfiguration(config).post().uri(url)
           .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
           .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
           .header("X-GitHub-Api-Version", API_VERSION)

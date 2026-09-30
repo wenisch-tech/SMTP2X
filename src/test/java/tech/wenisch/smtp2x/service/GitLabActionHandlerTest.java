@@ -28,7 +28,8 @@ class GitLabActionHandlerTest {
     server.start();
     var properties = new Smtp2xProperties("", null,
         new Smtp2xProperties.Crypto("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), null, null);
-    handler = new GitLabActionHandler(json, new SecretCipher(properties));
+    handler = new GitLabActionHandler(json, new SecretCipher(properties),
+        new ActionHttpClientFactory());
   }
 
   @AfterEach void stop() { server.stop(0); }

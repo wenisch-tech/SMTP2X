@@ -109,6 +109,7 @@ test("rule edit supports multiple actions, inline webhook creation, and persiste
     .click();
   await page.getByLabel("Action name", { exact: true }).fill("Browser webhook");
   await page.getByLabel("Action type").selectOption("WEBHOOK");
+  await page.getByLabel("Ignore TLS certificate errors").check();
   await page
     .getByLabel("Webhook URL", { exact: true })
     .fill("https://hooks.example.com/browser");
@@ -117,6 +118,13 @@ test("rule edit supports multiple actions, inline webhook creation, and persiste
     .getByRole("button", { name: "Create action", exact: true })
     .click();
   await expect(page.locator("#action-dialog")).not.toBeVisible();
+  const createdActions = await page.evaluate(() =>
+    window.smtp2x.api("/actions"),
+  );
+  expect(
+    createdActions.find((action) => action.name === "Browser webhook")
+      .configuration.ignoreTlsErrors,
+  ).toBe(true);
   await expect(page.getByLabel("Rule name", { exact: true })).toHaveValue(
     "Browser-created route",
   );
@@ -311,6 +319,7 @@ test("GitLab action validation, type switching, and escaped names", async ({
   await page.getByLabel("Action type").selectOption("WEBHOOK");
   await expect(page.getByLabel("GitLab base URL")).not.toBeVisible();
   await page.getByLabel("Action type").selectOption("GITLAB_ISSUE");
+  await page.getByLabel("Ignore TLS certificate errors").check();
   await page
     .getByLabel("Action name", { exact: true })
     .fill("<img src=x onerror=alert(1)>");
@@ -345,6 +354,11 @@ test("GitLab action validation, type switching, and escaped names", async ({
     "<img src=x onerror=alert(1)>",
   );
   await expect(page.locator("#action-list img")).toHaveCount(0);
+  const actions = await page.evaluate(() => window.smtp2x.api("/actions"));
+  expect(
+    actions.find((action) => action.name === "<img src=x onerror=alert(1)>")
+      .configuration.ignoreTlsErrors,
+  ).toBe(true);
 });
 
 test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
@@ -359,6 +373,7 @@ test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
       .click();
     await page.getByLabel("Action name", { exact: true }).fill(name);
     await page.getByLabel("Action type").selectOption(type);
+    await page.getByLabel("Ignore TLS certificate errors").check();
   };
   const create = () =>
     page
@@ -419,8 +434,11 @@ test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
   );
   expect(github.configuration.accessToken).toBe("");
   expect(github.configuration.accessTokenConfigured).toBe(true);
+  expect(github.configuration.ignoreTlsErrors).toBe(true);
   expect(forgejo.configuration.accessToken).toBe("");
   expect(forgejo.configuration.accessTokenConfigured).toBe(true);
+  expect(forgejo.configuration.ignoreTlsErrors).toBe(true);
   expect(mattermost.configuration.webhookUrl).toBe("");
   expect(mattermost.configuration.webhookUrlConfigured).toBe(true);
+  expect(mattermost.configuration.ignoreTlsErrors).toBe(true);
 });

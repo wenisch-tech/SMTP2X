@@ -5,18 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import tech.wenisch.smtp2x.domain.ActionType;
 
 @Component
 public class MattermostMessageActionHandler implements ActionHandler {
   private final ObjectMapper json;
   private final SecretCipher secrets;
-  private final RestClient client = RestClient.builder().build();
+  private final ActionHttpClientFactory clients;
 
-  public MattermostMessageActionHandler(ObjectMapper json, SecretCipher secrets) {
+  public MattermostMessageActionHandler(ObjectMapper json, SecretCipher secrets,
+      ActionHttpClientFactory clients) {
     this.json = json;
     this.secrets = secrets;
+    this.clients = clients;
   }
 
   @Override public ActionType type() { return ActionType.MATTERMOST_MESSAGE; }
@@ -31,7 +32,7 @@ public class MattermostMessageActionHandler implements ActionHandler {
     copy(config, message, "username");
     copy(config, message, "icon_url", "iconUrl");
     try {
-      client.post().uri(url).contentType(MediaType.APPLICATION_JSON)
+      clients.forConfiguration(config).post().uri(url).contentType(MediaType.APPLICATION_JSON)
           .body(json.writeValueAsString(message))
           .exchange((request, result) -> {
             if (result.getStatusCode().is2xxSuccessful()) return null;

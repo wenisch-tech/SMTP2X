@@ -41,6 +41,17 @@
             <option value="WEBHOOK">Webhook</option>
           </select></label
         >
+        <div class="form-callout">
+          <label class="check"
+            ><input type="checkbox" name="ignoreTlsErrors" /> Ignore TLS
+            certificate errors</label
+          >
+          <p class="muted small">
+            Trust any certificate and skip hostname verification for this
+            action. Use only for internal services with self-signed
+            certificates.
+          </p>
+        </div>
         <fieldset id="gitlab-fields" data-action-fields="GITLAB_ISSUE">
           <label
             >GitLab base URL<input

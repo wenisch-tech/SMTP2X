@@ -54,7 +54,8 @@ class IntegrationActionHandlersTest {
     config.putArray("labels").add("smtp").add("production");
     config.putArray("assignees").add("octocat");
 
-    var result = new GitHubIssueActionHandler(json, secrets).deliver(message(), config);
+    var result = new GitHubIssueActionHandler(json, secrets, new ActionHttpClientFactory())
+        .deliver(message(), config);
 
     assertThat(result.remoteUrl()).isEqualTo("https://github.example/acme/alerts/issues/17");
     assertThat(authorization.get("/repos/acme/alerts/issues").get())
@@ -77,7 +78,8 @@ class IntegrationActionHandlersTest {
     config.putArray("labelIds").add(5).add(8);
     config.putArray("assignees").add("oncall");
 
-    var result = new ForgejoIssueActionHandler(json, secrets).deliver(message(), config);
+    var result = new ForgejoIssueActionHandler(json, secrets, new ActionHttpClientFactory())
+        .deliver(message(), config);
 
     assertThat(result.remoteUrl()).isEqualTo("https://forgejo.example/acme/alerts/issues/23");
     assertThat(authorization.get("/api/v1/repos/acme/alerts/issues").get())
@@ -97,7 +99,8 @@ class IntegrationActionHandlersTest {
     config.put("username", "SMTP2X");
     config.put("iconUrl", "https://example.com/smtp2x.png");
 
-    var result = new MattermostMessageActionHandler(json, secrets).deliver(message(), config);
+    var result = new MattermostMessageActionHandler(json, secrets, new ActionHttpClientFactory())
+        .deliver(message(), config);
 
     assertThat(result.remoteUrl()).isEmpty();
     assertThat(result.diagnostics()).isEqualTo("Mattermost message posted");

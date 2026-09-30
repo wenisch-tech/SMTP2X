@@ -83,6 +83,8 @@ public class ActionConfigurationService {
     if (type == null) throw new IllegalArgumentException("Select an action type");
     if (config == null || !config.isObject())
       throw new IllegalArgumentException("Action configuration must be an object");
+    if (config.has("ignoreTlsErrors") && !config.path("ignoreTlsErrors").isBoolean())
+      throw new IllegalArgumentException("Ignore TLS errors must be true or false");
     switch (type) {
       case GITLAB_ISSUE -> {
         require(config, "baseUrl", "GitLab");
