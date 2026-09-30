@@ -43,16 +43,9 @@ SMTP2X is deliberately a single-instance application in this release. A persiste
 
 ## Quick start
 
-SMTP2X requires two values on its first start:
+SMTP2X requires `SMTP2X_ADMIN_PASSWORD` on its first start to create the initial local administrator.
 
-- `SMTP2X_ADMIN_PASSWORD` creates the initial local administrator.
-- `SMTP2X_CRYPTO_KEY` is a stable, base64-encoded 32-byte AES key used for stored integration secrets. Do not rotate or lose it without a secret migration; existing GitLab and webhook credentials would no longer decrypt.
-
-Generate a key once and retain it in your password manager or secret store:
-
-```bash
-openssl rand -base64 32
-```
+Integration secrets are encrypted with a 32-byte AES key. If `SMTP2X_CRYPTO_KEY` is absent, SMTP2X creates one at `/app/data/encryption.key` and reuses it on later starts. Keep the data volume: losing that file makes existing GitLab and webhook credentials unreadable. Set `SMTP2X_CRYPTO_KEY` when your secret-management policy requires the key to live outside the application volume.
 
 ### Docker
 
@@ -65,7 +58,6 @@ docker run --rm \
   -p 2525:2525 \
   -v smtp2x-data:/app/data \
   -e SMTP2X_ADMIN_PASSWORD='change-me-now' \
-  -e SMTP2X_CRYPTO_KEY='replace-with-your-base64-32-byte-key' \
   -e SMTP2X_SMTP_ENABLED=true \
   ghcr.io/wenisch-tech/smtp2x:latest
 ```
@@ -78,11 +70,10 @@ From a source checkout:
 
 ```bash
 export SMTP2X_ADMIN_PASSWORD='change-me-now'
-export SMTP2X_CRYPTO_KEY="$(openssl rand -base64 32)"
 docker compose up --build
 ```
 
-The Compose volume keeps H2 data, messages, attachments, and encrypted integration configuration across restarts. Use a fixed `SMTP2X_CRYPTO_KEY` after the first start rather than generating a new value each time.
+The Compose volume keeps H2 data, messages, attachments, encrypted integration configuration, and the generated encryption key across restarts.
 
 ### Run from source
 
@@ -90,7 +81,6 @@ Prerequisites: JDK 25 and Maven 3.9+.
 
 ```bash
 export SMTP2X_ADMIN_PASSWORD='change-me-now'
-export SMTP2X_CRYPTO_KEY="$(openssl rand -base64 32)"
 mvn spring-boot:run
 ```
 
@@ -196,7 +186,6 @@ docker run --rm \
   -p 8080:8080 -p 2525:2525 \
   -v smtp2x-data:/app/data \
   -e SMTP2X_ADMIN_PASSWORD='change-me-now' \
-  -e SMTP2X_CRYPTO_KEY='replace-with-your-base64-32-byte-key' \
   -e SPRING_PROFILES_ACTIVE=postgres \
   -e SPRING_DATASOURCE_URL='jdbc:postgresql://postgres.example:5432/smtp2x' \
   -e SPRING_DATASOURCE_USERNAME='smtp2x' \
@@ -214,7 +203,6 @@ The supplied chart creates separate HTTP and SMTP Services, a persistent volume 
 helm install smtp2x ./charts/smtp2x \
   --namespace smtp2x --create-namespace \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now' \
-  --set-string secrets.SMTP2X_CRYPTO_KEY='replace-with-your-base64-32-byte-key' \
   --set env.SMTP2X_SMTP_ENABLED=true
 ```
 
@@ -224,7 +212,6 @@ For PostgreSQL, add the profile and data-source values:
 helm upgrade --install smtp2x ./charts/smtp2x \
   --namespace smtp2x --create-namespace \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now' \
-  --set-string secrets.SMTP2X_CRYPTO_KEY='replace-with-your-base64-32-byte-key' \
   --set-string secrets.SPRING_DATASOURCE_PASSWORD='database-password' \
   --set env.SPRING_PROFILES_ACTIVE=postgres \
   --set env.SPRING_DATASOURCE_URL='jdbc:postgresql://postgres:5432/smtp2x' \

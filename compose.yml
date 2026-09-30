@@ -4,7 +4,6 @@ services:
     ports: ["8080:8080", "2525:2525"]
     environment:
       SMTP2X_ADMIN_PASSWORD: ${SMTP2X_ADMIN_PASSWORD:?Set SMTP2X_ADMIN_PASSWORD}
-      SMTP2X_CRYPTO_KEY: ${SMTP2X_CRYPTO_KEY:?Set a stable 32-byte base64 key}
       SMTP2X_SMTP_ENABLED: "true"
     volumes: [smtp2x-data:/app/data]
 volumes: { smtp2x-data: {} }
