@@ -10,12 +10,18 @@ on:
 permissions:
   contents: read
 
+# A release run must finish its tag before the next main run calculates a new
+# version. PRs use separate groups and are still free to run in parallel.
+concurrency:
+  group: smtp2x-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   versioning:
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     outputs:
       tag: ${{ steps.tag_version.outputs.new_tag }}
       version: ${{ steps.version.outputs.version }}
@@ -29,13 +35,15 @@ jobs:
         name: Normalize image name
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - id: tag_version
-        name: Bump version and generate changelog
+        name: Calculate next version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ github.token }}
           release_branches: main
           default_bump: patch
-          dry_run: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+          # The actual tag is created in the release job, after every build,
+          # image, chart, and OCI publication step has succeeded.
+          dry_run: true
       - id: version
         name: Derive application version
         shell: bash
@@ -221,11 +229,18 @@ jobs:
           password: ${{ secrets.HELM_CHARTS_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Push chart to wenisch-tech/helm-charts
         run: helm push release/smtp2x-${{ needs.versioning.outputs.version }}.tgz oci://ghcr.io/wenisch-tech/helm-charts
+      - id: release_tag
+        name: Create release tag after successful builds
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ github.token }}
+          release_branches: main
+          default_bump: patch
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.versioning.outputs.tag }}
-          name: ${{ needs.versioning.outputs.tag }}
+          tag_name: ${{ steps.release_tag.outputs.new_tag }}
+          name: ${{ steps.release_tag.outputs.new_tag }}
           generate_release_notes: true
           files: |
             release/*.jar
