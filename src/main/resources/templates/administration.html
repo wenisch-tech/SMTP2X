@@ -1,1 +1,86 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>SMTP2X administration</title><link rel="stylesheet" href="/css/smtp2x.css"><meta name="_csrf" th:content="${_csrf.token}"><script defer src="/js/smtp2x.js"></script></head><body><div class="shell"><aside class="side"><div class="brand">SMTP<i>2</i>X</div><nav class="nav"><a href="/">Dashboard</a><a href="/messages">Messages</a><a href="/deliveries">Deliveries</a><a href="/actions">Actions</a><a href="/rules">Rules</a><a href="/audit">Audit trail</a><a class="active" href="/administration">Administration</a></nav></aside><main class="main"><div class="top"><div><span class="label">Access control</span><h1>Administration</h1><p class="muted">OIDC users start Pending. Local users can be created and their passwords changed here.</p></div></div><div class="split"><section class="panel"><h2>Create local user</h2><form id="new-user" class="form"><label>Email<input class="input" name="email" type="email" required></label><label>Password<input class="input" name="password" type="password" minlength="8" required></label><label>Role<select class="input" name="role"><option value="VIEWER">Viewer</option><option value="ADMIN">Admin</option><option value="PENDING">Pending</option></select></label><button class="btn">Create user</button></form><p class="muted">Passwords must contain at least eight characters. OIDC-only users cannot have a local password.</p></section><section class="panel"><h2>SMTP listener</h2><p class="muted">SMTP is enabled by default on port 2525. Set <code>SMTP2X_SMTP_USERNAME</code>, <code>SMTP2X_SMTP_PASSWORD</code>, and <code>SMTP2X_SMTP_AUTHENTICATION=REQUIRED</code> to bootstrap an SMTP account.</p><p class="muted">Set <code>SMTP2X_ADMIN_PASSWORD</code> to override the bootstrap administrator password on every startup. Without it, the initial default is <code>admin</code>.</p></section></div><section class="panel" style="margin-top:1rem"><h2>User access</h2><table class="table"><thead><tr><th>Email</th><th>Role</th><th>Local password</th><th>Enabled</th></tr></thead><tbody id="users"></tbody></table></section></main></div><script>document.addEventListener('DOMContentLoaded',()=>{const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const refresh=async()=>{const users=await smtp2x.api('/users');document.querySelector('#users').innerHTML=users.map(u=>`<tr><td>${escape(u.email)}</td><td><select class="input" onchange="window.smtp2x.role('${u.id}',this.value)">${['PENDING','VIEWER','ADMIN'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td><td>${u.oidcOnly?'<span class="muted">OIDC only</span>':`<button class="btn ghost" onclick="window.smtp2x.password('${u.id}')">Change password</button>`}</td><td>${u.enabled?'Enabled':'Disabled'}</td></tr>`).join('')};window.smtp2x.role=async(id,role)=>{try{await smtp2x.api('/users/'+id+'/role',{method:'PUT',body:JSON.stringify({role})});refresh()}catch(e){alert(e.message)}};window.smtp2x.password=async id=>{const password=prompt('New password (at least 8 characters)');if(!password)return;try{await smtp2x.api('/users/'+id+'/password',{method:'PUT',body:JSON.stringify({password})});alert('Password updated')}catch(e){alert(e.message)}};document.querySelector('#new-user').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget;try{await smtp2x.api('/users',{method:'POST',body:JSON.stringify({email:f.email.value,password:f.password.value,role:f.role.value})});f.reset();refresh()}catch(e){alert(e.message)}};refresh()})</script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments/layout :: head('Administration')}"></head>
+  <body data-page="administration" th:attr="data-admin=${isAdmin}">
+    <div class="shell">
+      <aside
+        th:replace="~{fragments/layout :: sidebar('administration')}"
+      ></aside>
+      <main class="main">
+        <header
+          th:replace="~{fragments/layout :: header('WORKSPACE / ACCESS','Administration','Manage your team and workspace access.')}"
+        ></header>
+        <div id="page-notice" class="notice" role="status" hidden></div>
+        <div class="activity-grid">
+          <section class="card">
+            <h2>Create local user</h2>
+            <form id="new-user" class="form">
+              <label>Email<input name="email" type="email" required /></label
+              ><label
+                >Password<input
+                  name="password"
+                  type="password"
+                  minlength="8"
+                  required
+                  autocomplete="new-password" /></label
+              ><label
+                >Role<select name="role">
+                  <option value="VIEWER">Viewer</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="PENDING">Pending</option>
+                </select></label
+              ><button class="btn">Create user</button>
+            </form>
+          </section>
+          <section class="card">
+            <div class="eyebrow">WORKSPACE ACCESS</div>
+            <h2>The right access for everyone</h2>
+            <p class="muted">
+              Viewers can inspect routing and delivery activity. Administrators
+              manage configuration and users.
+            </p>
+            <p class="muted">
+              New OIDC users remain Pending until an administrator grants
+              access. Password changes apply only to local accounts.
+            </p>
+          </section>
+        </div>
+        <section class="card">
+          <h2>User access</h2>
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Local password</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="users"></tbody>
+            </table>
+          </div>
+        </section>
+        <dialog id="password-dialog">
+          <h2>Change password</h2>
+          <form id="password-form" class="form">
+            <label
+              >New password<input
+                name="password"
+                type="password"
+                minlength="8"
+                required
+                autocomplete="new-password"
+            /></label>
+            <div class="form-footer">
+              <button type="button" class="btn secondary" id="cancel-password">
+                Cancel</button
+              ><button class="btn">Update password</button>
+            </div>
+            <p id="password-error" class="notice error" hidden></p>
+          </form>
+        </dialog>
+      </main>
+    </div>
+  </body>
+</html>

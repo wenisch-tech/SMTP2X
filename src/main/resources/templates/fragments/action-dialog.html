@@ -1,0 +1,97 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <dialog
+      id="action-dialog"
+      aria-labelledby="action-dialog-title"
+      th:fragment="dialog"
+      th:if="${isAdmin}"
+    >
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">CONNECT A DESTINATION</div>
+          <h2 id="action-dialog-title">Create action</h2>
+        </div>
+        <button
+          type="button"
+          class="icon-btn"
+          id="close-action"
+          aria-label="Close action dialog"
+        >
+          ×
+        </button>
+      </div>
+      <p class="muted">
+        Actions are saved independently and remain available if you cancel a
+        rule draft.
+      </p>
+      <form id="action-form" class="form">
+        <label
+          >Action name<input
+            name="name"
+            required
+            maxlength="120"
+            placeholder="e.g. Platform issue tracker" /></label
+        ><label
+          >Action type<select name="type">
+            <option value="GITLAB_ISSUE">GitLab issue</option>
+            <option value="WEBHOOK">Webhook</option>
+          </select></label
+        >
+        <fieldset id="gitlab-fields">
+          <label
+            >GitLab base URL<input
+              name="baseUrl"
+              type="url"
+              value="https://gitlab.com"
+              required /></label
+          ><label
+            >Project ID or path<input
+              name="project"
+              placeholder="platform/alerts"
+              required /></label
+          ><label
+            >Access token<input
+              name="accessToken"
+              type="password"
+              required
+              autocomplete="new-password" /></label
+          ><label class="check"
+            ><input type="checkbox" name="useRecipient" /> Use recipient as
+            assignee</label
+          ><label
+            >Default assignee emails <span class="optional">one per line</span
+            ><textarea name="defaults" rows="2"></textarea></label
+          ><label
+            >Email mappings <span class="optional">JSON object</span
+            ><textarea name="mappings" rows="2">{}</textarea></label
+          ><button type="button" class="btn secondary" id="preview-assignees">
+            Validate assignees
+          </button>
+          <p id="preview-result" class="muted small" role="status"></p>
+        </fieldset>
+        <fieldset id="webhook-fields" hidden disabled>
+          <label
+            >Webhook URL<input
+              name="url"
+              type="url"
+              required
+              placeholder="https://hooks.example.com/notifications" /></label
+          ><label
+            >Bearer token <span class="optional">optional</span
+            ><input
+              name="bearerToken"
+              type="password"
+              autocomplete="new-password"
+          /></label>
+        </fieldset>
+        <div id="action-error" class="notice error" role="alert" hidden></div>
+        <div class="form-footer">
+          <button type="button" class="btn secondary" id="cancel-action">
+            Cancel</button
+          ><button class="btn">Create action</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -1,0 +1,91 @@
+package tech.wenisch.smtp2x.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import tech.wenisch.smtp2x.domain.*;
+import tech.wenisch.smtp2x.repository.*;
+
+@SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:workspace;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "smtp2x.smtp.enabled=false", "smtp2x.data-directory=target/workspace-test-data", "smtp2x.delivery.poll-ms=3600000"})
+class WorkspaceIntegrationTest {
+  @Autowired WebApplicationContext context;
+  @Autowired ActionConfigurationRepository actions;
+  @Autowired RoutingRuleRepository rules;
+  @Autowired InboundMessageRepository messages;
+  @Autowired DeliveryJobRepository deliveries;
+  @Autowired AppUserRepository users;
+  @Autowired ObjectMapper json;
+  MockMvc mvc;
+  final String admin="admin@smtp2x.local", viewer="viewer@example.com";
+
+  @BeforeEach void setup() {
+    mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+    deliveries.deleteAll();messages.deleteAll();rules.deleteAll();actions.deleteAll();
+    if(users.findByEmailIgnoreCase(viewer).isEmpty())users.save(new AppUser(viewer,"unused",UserRole.VIEWER,false,false));
+  }
+  ActionConfiguration action(String name) {return actions.save(new ActionConfiguration(name,ActionType.WEBHOOK,"{\"url\":\"https://user:secret@hooks.example.com/private-token?key=secret#secret\",\"bearerToken\":\"hidden-secret\"}"));}
+  String ruleRequest(List<UUID> ids, boolean enabled) throws Exception {
+    return json.writeValueAsString(new ApiController.RuleRequest("Infrastructure alerts",false,enabled,"alerts@example.com","*@example.com","production",RoutingRule.SubjectMode.EQUALS,ids));
+  }
+  @Test void ruleAssociationsSurviveCreateUpdateAndSerialization() throws Exception {
+    var a=action("Ops"); var b=action("Chat");
+    var result=mvc.perform(post("/api/v1/rules").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(List.of(a.getId(),b.getId()),false)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false)).andExpect(jsonPath("$.actionIds.length()").value(2)).andReturn();
+    String id=json.readTree(result.getResponse().getContentAsString()).path("id").asText();
+    mvc.perform(get("/api/v1/rules").with(user(viewer).roles("VIEWER")))
+      .andExpect(status().isOk()).andExpect(jsonPath("$[0].actionIds.length()").value(2));
+    mvc.perform(put("/api/v1/rules/"+id).with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(List.of(b.getId()),true)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true)).andExpect(jsonPath("$.subjectMode").value("EQUALS")).andExpect(jsonPath("$.actionIds[0]").value(b.getId().toString()));
+  }
+  @Test void invalidSelectionsAndNamesHaveActionableErrors() throws Exception {
+    for(var ids:List.of(List.<UUID>of(),List.of(UUID.randomUUID())))
+      mvc.perform(post("/api/v1/rules").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(ids,true))).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").isNotEmpty());
+    var a=action("Ops");
+    mvc.perform(post("/api/v1/rules").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(List.of(a.getId()),true).replace("Infrastructure alerts",""))).andExpect(status().isBadRequest());
+    mvc.perform(post("/api/v1/rules").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(List.of(a.getId()),true).replace("alerts@example.com",""))).andExpect(status().isBadRequest());
+  }
+  @Test void authorizationAndCsrfRemainEnforced() throws Exception {
+    mvc.perform(get("/api/v1/dashboard")).andExpect(status().is3xxRedirection());
+    mvc.perform(get("/api/v1/dashboard").with(user(viewer).roles("VIEWER"))).andExpect(status().isOk());
+    mvc.perform(post("/api/v1/rules").with(user(viewer).roles("VIEWER")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(ruleRequest(List.of(UUID.randomUUID()),true))).andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isForbidden());
+    mvc.perform(get("/administration").with(user(viewer).roles("VIEWER"))).andExpect(status().isForbidden());
+    mvc.perform(get("/rules").with(user(viewer).roles("VIEWER"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("id=\"rule-form\""))));
+  }
+  @Test void actionCreationHonorsDisabledState() throws Exception {
+    mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Paused\",\"type\":\"WEBHOOK\",\"enabled\":false,\"configuration\":{\"url\":\"https://example.com/hook\"}}"))
+      .andExpect(status().isCreated()).andExpect(jsonPath("$.enabled").value(false));
+  }
+  @Test void dashboardAggregatesAreBoundedAndExcludeSensitiveData() throws Exception {
+    var a=action("Ops");
+    rules.save(new RoutingRule("Alerts",true,null,null,null,RoutingRule.SubjectMode.CONTAINS,List.of(a.getId())));
+    for(int i=0;i<7;i++) {
+      var m=messages.save(new InboundMessage("robot@example.com","[]","Alert "+i,"private body","private html","private/path"));
+      var job=new DeliveryJob(m.getId(),a.getId(),"private configuration snapshot");
+      if(i<6)job.fail("secret diagnostic",false,java.time.Instant.now());else job.success("https://example.com","secret result","");
+      deliveries.save(job);
+    }
+    var queuedMessage=messages.save(new InboundMessage("queue@example.com","[]","Queued",null,null,"fixture"));
+    var queued=new DeliveryJob(queuedMessage.getId(),a.getId(),"private snapshot");
+    queued.fail("retry",true,java.time.Instant.parse("2100-01-01T00:00:00Z"));deliveries.save(queued);
+    var runningMessage=messages.save(new InboundMessage("queue@example.com","[]","Running",null,null,"fixture"));
+    var running=new DeliveryJob(runningMessage.getId(),a.getId(),"private snapshot");running.claim();deliveries.save(running);
+    var result=mvc.perform(get("/api/v1/dashboard").with(user(viewer).roles("VIEWER")))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.counts.messages").value(9)).andExpect(jsonPath("$.counts.failed").value(6)).andExpect(jsonPath("$.counts.succeeded").value(1)).andExpect(jsonPath("$.counts.active").value(2))
+      .andExpect(jsonPath("$.recentMessages.length()").value(5)).andExpect(jsonPath("$.recentFailures.length()").value(5))
+      .andExpect(jsonPath("$.actions[0].destination").value("hooks.example.com")).andExpect(jsonPath("$.rules[0].actionIds[0]").value(a.getId().toString())).andReturn();
+    assertThat(result.getResponse().getContentAsString()).doesNotContain("secret","private","configurationSnapshot","textBody","htmlBody","bearerToken");
+  }
+}

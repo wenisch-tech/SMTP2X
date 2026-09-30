@@ -1,0 +1,106 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:fragment="head(title)">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title th:text="${title} + ' · SMTP2X'">SMTP2X</title>
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <link rel="stylesheet" href="/css/smtp2x.css" />
+    <script defer src="/js/smtp2x.js"></script>
+  </head>
+  <body>
+    <aside class="side" th:fragment="sidebar(page)">
+      <a class="brand" href="/"
+        ><span class="brand-mark" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          >
+            <rect x="3" y="5" width="18" height="14" rx="3" />
+            <path d="m3 7 9 6 9-6" /></svg></span
+        >SMTP<span class="brand-accent">2</span>X</a
+      >
+      <p class="brand-caption">Every message. A next step.</p>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="nav" aria-label="Main navigation">
+        <a
+          href="/"
+          th:classappend="${page == 'dashboard'} ? 'active'"
+          th:attr="aria-current=${page == 'dashboard'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#overview"></use></svg
+          >Overview</a
+        ><a
+          href="/messages"
+          th:classappend="${page == 'messages'} ? 'active'"
+          th:attr="aria-current=${page == 'messages'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#mail"></use></svg
+          >Messages</a
+        ><a
+          href="/deliveries"
+          th:classappend="${page == 'deliveries'} ? 'active'"
+          th:attr="aria-current=${page == 'deliveries'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#arrow"></use></svg
+          >Deliveries</a
+        ><a
+          href="/rules"
+          th:classappend="${page == 'rules'} ? 'active'"
+          th:attr="aria-current=${page == 'rules'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#flow"></use></svg
+          >Routing rules</a
+        ><a
+          href="/actions"
+          th:classappend="${page == 'actions'} ? 'active'"
+          th:attr="aria-current=${page == 'actions'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#action"></use></svg
+          >Actions</a
+        ><a
+          href="/audit"
+          th:classappend="${page == 'audit'} ? 'active'"
+          th:attr="aria-current=${page == 'audit'} ? 'page' : null"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#audit"></use></svg
+          >Audit trail</a
+        ><a
+          href="/administration"
+          th:classappend="${page == 'administration'} ? 'active'"
+          th:attr="aria-current=${page == 'administration'} ? 'page' : null"
+          th:if="${isAdmin}"
+          ><svg class="icon" aria-hidden="true">
+            <use href="/css/icons.svg#settings"></use></svg
+          >Administration</a
+        >
+      </nav>
+      <div class="side-bottom">
+        <div class="workspace-label">
+          <span class="dot"></span> Your notification gateway
+        </div>
+        <div class="account" th:text="${user}"></div>
+        <form method="post" th:action="@{/logout}">
+          <button class="signout">
+            Sign out
+            <svg class="icon" aria-hidden="true">
+              <use href="/css/icons.svg#arrow"></use>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </aside>
+    <header th:fragment="header(eyebrow,title,description)" class="page-header">
+      <div>
+        <div class="eyebrow" th:text="${eyebrow}"></div>
+        <h1 th:text="${title}"></h1>
+        <p class="muted" th:text="${description}"></p>
+      </div>
+      <span class="workspace-badge">SMTP2X workspace</span>
+    </header>
+  </body>
+</html>

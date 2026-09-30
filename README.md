@@ -11,12 +11,15 @@ SMTP2X is a self-hosted gateway for applications that can only send SMTP notific
 
 Its first-class integration is **GitLab issue creation**: actions can assign issues from SMTP envelope recipients, configured default assignees, or explicit email-to-GitLab-user mappings.
 
+![SMTP2X dashboard showing configured SMTP routes, shared actions, and delivery totals](docs/smtp2x-dashboard.png)
+
 ## Features
 
 - **SMTP gateway** — accepts SMTP transactions, including multiple `RCPT TO` recipients, parses MIME text/HTML messages and attachments, and never relays mail.
 - **GitLab issues first** — creates issues in GitLab.com or self-managed GitLab with a configurable project, title and description, labels, confidentiality, assignees, and optional attachment uploads.
 - **Recipient-based assignees** — combines SMTP recipients with default assignee email addresses; resolves mappings before exact GitLab email lookup; deduplicates GitLab user IDs; creates the issue unassigned if none resolve.
 - **Webhooks** — delivers a JSON representation of the accepted message to HTTP endpoints, with configurable headers and bearer authentication.
+- **Visual routing workspace** — explore SMTP → rules → actions on an interactive dashboard, select actions by name, and create actions directly inside a rule draft.
 - **Routing rules** — global and recipient-specific rules can filter on envelope sender and subject. Every matching rule contributes actions; the same action runs once per message.
 - **Durable delivery** — SMTP success is returned only after the message and delivery jobs are stored. Failed remote calls retry after 1, 5, 15, and 60 minutes.
 - **Message history and audit trail** — inspect received messages, attachments, routing results, delivery attempts, remote issue links, and configuration changes.
@@ -85,7 +88,13 @@ The SMTP listener starts by default on port `2525`. Set `SMTP2X_SMTP_ENABLED=fal
 
 ## Configure GitLab delivery
 
-Create a **GitLab issue** action from **Actions** in the UI, then create a global or recipient-specific rule that selects it.
+Open **Routing rules**, choose **Create rule**, and enter the matching conditions. Under **Run these actions**, select actions by name or choose **Create action** to configure a GitLab issue or webhook without leaving your draft. Newly created actions are selected automatically; **Save rule** connects them. Actions are reusable and remain available if you cancel a rule draft.
+
+You can also create actions on **Actions**, where each action lists the rules that use it. Edit an existing rule to change its conditions, selected actions, or enabled state.
+
+![Rule editor with named actions selected and inline action creation](docs/smtp2x-rules.png)
+
+The dashboard’s **Configured routing** view shows the current configuration. Click a rule or action to highlight its connections and inspect its details. Delivery totals and recent activity are shown separately and refresh every 30 seconds while the page is visible; they are not historical per-rule match counts.
 
 The GitLab action needs:
 
@@ -104,8 +113,8 @@ Private GitLab email addresses are not generally visible to ordinary project tok
 
 ### A typical route
 
-1. Create a GitLab action for `platform/alerts`, with `support@example.com` as a default assignee and **Use recipient as assignee** enabled.
-2. Create a recipient rule for `alerts@example.com` and attach that action.
+1. Create a recipient rule for `alerts@example.com`. Under **Run these actions**, choose **Create action**.
+2. Configure a GitLab action for `platform/alerts`, with `support@example.com` as a default assignee and **Use recipient as assignee** enabled. Create the action, then save the rule.
 3. Configure your existing application with SMTP host `smtp2x.example.com`, port `2525`, and recipient `alerts@example.com`.
 4. A message addressed to `alice@example.com` and `alerts@example.com` is accepted once. The resulting GitLab issue is assigned to Alice when resolvable, plus Support when resolvable.
 
@@ -285,7 +294,21 @@ The UI and `/api/v1` require an authenticated Viewer or Admin session. Administr
 mvn verify
 ```
 
-The test suite covers recipient-plus-default GitLab assignee resolution and routing. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
+The test suite covers recipient-plus-default GitLab assignee resolution, routing configuration, dashboard summaries, and access control. The GitHub Actions workflow verifies Maven tests, builds the container, runs Trivy scanning, and renders the Helm chart when Helm is available.
+
+### Browser checks and documentation screenshots
+
+Node.js and the Playwright Chromium browser are needed only for development tooling; the application still uses Thymeleaf and vanilla JavaScript.
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:ui
+# Regenerate just the two README images:
+npm run screenshots
+```
+
+These commands compile the test fixture server and start it on `127.0.0.1:18080` with a temporary in-memory H2 database, fictional routes and activity, and SMTP disabled. The server is shut down afterwards. No demo mode is included in the production application, and fixture delivery jobs cannot make external requests. Screenshots are written to `docs/smtp2x-dashboard.png` and `docs/smtp2x-rules.png`.
 
 ## License
 

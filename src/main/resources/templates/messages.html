@@ -1,1 +1,32 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>SMTP2X messages</title><link rel="stylesheet" href="/css/smtp2x.css"><meta name="_csrf" th:content="${_csrf.token}"><script defer src="/js/smtp2x.js"></script></head><body><div class="shell"><aside class="side"><div class="brand">SMTP<i>2</i>X</div><nav class="nav"><a href="/">Dashboard</a><a class="active" href="/messages">Messages</a><a href="/deliveries">Deliveries</a><a href="/actions">Actions</a><a href="/rules">Rules</a><a href="/audit">Audit trail</a><a href="/administration">Administration</a></nav></aside><main class="main"><h1>Messages</h1><section class="panel"><table class="table"><thead><tr><th>Received</th><th>From</th><th>Subject</th><th>Recipients</th></tr></thead><tbody id="messages"></tbody></table></section></main></div><script>document.addEventListener('DOMContentLoaded',()=>smtp2x.rows('/messages','#messages',[x=>x.receivedAt,x=>x.envelopeFrom,x=>x.subject,x=>x.recipientsJson]))</script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments/layout :: head('Messages')}"></head>
+  <body data-page="messages" th:attr="data-admin=${isAdmin}">
+    <div class="shell">
+      <aside th:replace="~{fragments/layout :: sidebar('messages')}"></aside>
+      <main class="main">
+        <header
+          th:replace="~{fragments/layout :: header('WORKSPACE / ACTIVITY','Messages','A durable record of your incoming notifications.')}"
+        ></header>
+        <div id="page-notice" class="notice" role="status" hidden></div>
+        <section class="card">
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Received</th>
+                  <th>From / recipients</th>
+                  <th>Subject</th>
+                </tr>
+              </thead>
+              <tbody id="history-rows"></tbody>
+            </table>
+          </div>
+          <div id="history-empty" class="empty" hidden>
+            No activity yet. Your workspace is ready when you are.
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

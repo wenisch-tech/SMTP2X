@@ -1,1 +1,131 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>SMTP2X rules</title><link rel="stylesheet" href="/css/smtp2x.css"><meta name="_csrf" th:content="${_csrf.token}"><script defer src="/js/smtp2x.js"></script></head><body><div class="shell"><aside class="side"><div class="brand">SMTP<i>2</i>X</div><nav class="nav"><a href="/">Dashboard</a><a href="/messages">Messages</a><a href="/deliveries">Deliveries</a><a href="/actions">Actions</a><a class="active" href="/rules">Rules</a><a href="/audit">Audit trail</a><a href="/administration">Administration</a></nav></aside><main class="main"><h1>Routing rules</h1><div class="split"><section class="panel"><form class="form" id="rule"><label>Name<input class="input" name="name" required></label><label><input type="checkbox" name="globalRule"> Global rule</label><label>Recipient pattern<input class="input" name="recipientPattern" placeholder="alerts@example.com or *@example.com"></label><label>Envelope sender pattern<input class="input" name="senderPattern"></label><label>Subject contains<input class="input" name="subjectFilter"></label><label>Action IDs, one per line<textarea class="input" name="actions" required></textarea></label><button class="btn">Save rule</button></form></section><section class="panel"><table class="table"><thead><tr><th>Name</th><th>Scope</th><th>Actions</th></tr></thead><tbody id="rules"></tbody></table></section></div></main></div><script>document.addEventListener('DOMContentLoaded',()=>{const f=rule,refresh=()=>smtp2x.rows('/rules','#rules',[x=>x.name,x=>x.globalRule?'Global':x.recipientPattern,x=>x.actionIds.join(', ')]);refresh();f.onsubmit=async e=>{e.preventDefault();try{await smtp2x.api('/rules',{method:'POST',body:JSON.stringify({name:f.name.value,globalRule:f.globalRule.checked,enabled:true,recipientPattern:f.recipientPattern.value,senderPattern:f.senderPattern.value,subjectFilter:f.subjectFilter.value,subjectMode:'CONTAINS',actionIds:f.actions.value.split('\n').filter(Boolean)})});f.reset();refresh()}catch(e){alert(e.message)}}})</script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{fragments/layout :: head('Routing rules')}"></head>
+  <body data-page="rules" th:attr="data-admin=${isAdmin}">
+    <div class="shell">
+      <aside th:replace="~{fragments/layout :: sidebar('rules')}"></aside>
+      <main class="main">
+        <header
+          th:replace="~{fragments/layout :: header('WORKSPACE / CONFIGURATION','Routing rules','Define what matches. Choose what happens next.')}"
+        ></header>
+        <div id="page-notice" class="notice" role="status" hidden></div>
+        <div class="section-heading toolbar">
+          <input
+            id="rule-search"
+            class="search"
+            type="search"
+            placeholder="Search rules…"
+            aria-label="Search rules"
+          /><button class="btn" id="new-rule" th:if="${isAdmin}">
+            + Create rule
+          </button>
+        </div>
+        <div id="rules-workspace" class="rules-workspace">
+          <section
+            id="rule-list"
+            class="rule-list"
+            aria-label="Routing rules"
+          ></section>
+          <section
+            class="card editor"
+            id="rule-editor"
+            th:if="${isAdmin}"
+            hidden
+          >
+            <div class="section-heading">
+              <div>
+                <div class="eyebrow">ROUTING WORKSPACE</div>
+                <h2 id="editor-title">Create rule</h2>
+              </div>
+              <button
+                class="icon-btn"
+                type="button"
+                id="close-rule"
+                aria-label="Close rule editor"
+              >
+                ×
+              </button>
+            </div>
+            <form id="rule-form" class="form">
+              <label
+                >Rule name<input
+                  name="name"
+                  required
+                  maxlength="120"
+                  placeholder="e.g. Infrastructure alerts" /></label
+              ><label class="check"
+                ><input name="enabled" type="checkbox" checked /> Rule
+                enabled</label
+              >
+              <div class="form-section">
+                <h3><span class="step">1</span> When a message arrives</h3>
+                <label class="check"
+                  ><input name="globalRule" type="checkbox" /> Match all
+                  recipients (global rule)</label
+                ><label id="recipient-label"
+                  >Recipient pattern<input
+                    name="recipientPattern"
+                    maxlength="320"
+                    placeholder="alerts@example.com or *@example.com"
+                    required
+                /></label>
+                <div class="field-grid">
+                  <label
+                    >Sender pattern <span class="optional">optional</span
+                    ><input
+                      name="senderPattern"
+                      maxlength="320"
+                      placeholder="*@monitoring.example.com" /></label
+                  ><label
+                    >Subject matching<select name="subjectMode">
+                      <option value="CONTAINS">Contains</option>
+                      <option value="EQUALS">Equals exactly</option>
+                    </select></label
+                  >
+                </div>
+                <label
+                  >Subject text <span class="optional">optional</span
+                  ><input
+                    name="subjectFilter"
+                    maxlength="1000"
+                    placeholder="e.g. production"
+                /></label>
+              </div>
+              <div class="form-section">
+                <div class="section-heading">
+                  <h3><span class="step">2</span> Run these actions</h3>
+                  <button type="button" class="text-button" id="inline-action">
+                    + Create action
+                  </button>
+                </div>
+                <input
+                  id="action-search"
+                  type="search"
+                  placeholder="Find an action…"
+                  aria-label="Find an action"
+                />
+                <div id="action-options" class="action-options"></div>
+                <p class="muted small">
+                  Select one or more actions. Shared actions run once per
+                  message.
+                </p>
+              </div>
+              <div
+                id="rule-error"
+                class="notice error"
+                role="alert"
+                hidden
+              ></div>
+              <div class="form-footer">
+                <button type="button" class="btn secondary" id="cancel-rule">
+                  Cancel</button
+                ><button class="btn" id="save-rule">Save rule</button>
+              </div>
+            </form>
+          </section>
+        </div>
+        <div th:replace="~{fragments/action-dialog :: dialog}"></div>
+      </main>
+    </div>
+  </body>
+</html>

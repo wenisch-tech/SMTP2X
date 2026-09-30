@@ -1,3 +1,25 @@
 package tech.wenisch.smtp2x.web;
-import java.security.Principal; import org.springframework.stereotype.Controller; import org.springframework.ui.Model; import org.springframework.web.bind.annotation.GetMapping; import tech.wenisch.smtp2x.repository.*;
-@Controller public class WebController {private final InboundMessageRepository messages;private final DeliveryJobRepository deliveries;private final ActionConfigurationRepository actions;private final RoutingRuleRepository rules;private final AuditEventRepository audits;public WebController(InboundMessageRepository m,DeliveryJobRepository d,ActionConfigurationRepository a,RoutingRuleRepository r,AuditEventRepository au){messages=m;deliveries=d;actions=a;rules=r;audits=au;}@GetMapping("/")String dashboard(Model model,Principal user){model.addAttribute("user",user.getName());model.addAttribute("messages",messages.count());model.addAttribute("deliveries",deliveries.count());model.addAttribute("actions",actions.count());model.addAttribute("rules",rules.count());model.addAttribute("recent",messages.findAll(org.springframework.data.domain.PageRequest.of(0,10,org.springframework.data.domain.Sort.by("receivedAt").descending())).getContent());return "dashboard";}@GetMapping("/pending")String pending(){return "pending";}@GetMapping("/login")String login(){return "login";}@GetMapping("/actions")String actions(){return "actions";}@GetMapping("/rules")String rules(){return "rules";}@GetMapping("/messages")String messages(){return "messages";}@GetMapping("/deliveries")String deliveries(){return "deliveries";}@GetMapping("/audit")String audit(){return "audit";}@GetMapping("/administration")String admin(){return "administration";}}
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+@Controller
+public class WebController {
+  @ModelAttribute
+  void layout(Model model, Authentication user) {
+    model.addAttribute("user",user==null?"":user.getName());
+    model.addAttribute("isAdmin",user!=null && user.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_ADMIN")));
+  }
+  @GetMapping("/") String dashboard(){return "dashboard";}
+  @GetMapping("/pending") String pending(){return "pending";}
+  @GetMapping("/login") String login(){return "login";}
+  @GetMapping("/actions") String actions(){return "actions";}
+  @GetMapping("/rules") String rules(){return "rules";}
+  @GetMapping("/messages") String messages(){return "messages";}
+  @GetMapping("/deliveries") String deliveries(){return "deliveries";}
+  @GetMapping("/audit") String audit(){return "audit";}
+  @GetMapping("/administration") @PreAuthorize("hasRole('ADMIN')") String admin(){return "administration";}
+}

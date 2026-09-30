@@ -1,1 +1,71 @@
-<!doctype html><html xmlns:th="http://www.thymeleaf.org"><head><title>SMTP2X</title><link rel="stylesheet" href="/css/smtp2x.css"><meta name="_csrf" th:content="${_csrf.token}"><script defer src="/js/smtp2x.js"></script></head><body><div class="shell"><aside class="side"><div class="brand">SMTP<i>2</i>X</div><p>SMTP notification gateway</p><nav class="nav"><a class="active" href="/">Dashboard</a><a href="/messages">Messages</a><a href="/deliveries">Deliveries</a><a href="/actions">Actions</a><a href="/rules">Rules</a><a href="/audit">Audit trail</a><a href="/administration">Administration</a></nav></aside><main class="main"><div class="top"><div><span class="label">Overview</span><h1>Delivery control room</h1></div><div class="muted" th:text="${user}"></div></div><section class="grid"><div class="panel"><div class="label">Messages</div><div class="metric" th:text="${messages}"></div></div><div class="panel"><div class="label">Deliveries</div><div class="metric" th:text="${deliveries}"></div></div><div class="panel"><div class="label">Actions</div><div class="metric" th:text="${actions}"></div></div><div class="panel"><div class="label">Rules</div><div class="metric" th:text="${rules}"></div></div></section><section class="panel" style="margin-top:1rem"><h2>Recent messages</h2><table class="table"><thead><tr><th>Received</th><th>From</th><th>Subject</th></tr></thead><tbody><tr th:each="m:${recent}"><td th:text="${m.receivedAt}"></td><td th:text="${m.envelopeFrom}"></td><td th:text="${m.subject}"></td></tr></tbody></table></section></main></div></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+  <head
+    th:replace="~{fragments/layout :: head('A clear path for every message.')}"
+  ></head>
+  <body data-page="dashboard" th:attr="data-admin=${isAdmin}">
+    <div class="shell">
+      <aside th:replace="~{fragments/layout :: sidebar('dashboard')}"></aside>
+      <main class="main">
+        <header
+          th:replace="~{fragments/layout :: header('WORKSPACE / OVERVIEW','A clear path for every message.','Your routing at a glance. From incoming email to the work that follows.')}"
+        ></header>
+        <div id="page-notice" class="notice" role="status" hidden></div>
+        <div class="section-heading">
+          <span class="muted small">Totals across retained records</span>
+          <div class="refresh-tools">
+            <span id="updated" class="muted small">Connecting…</span
+            ><button class="btn secondary compact" id="refresh">
+              ↻ Refresh
+            </button>
+          </div>
+        </div>
+        <section class="metrics" aria-label="Delivery totals" id="metrics">
+          <div class="card skeleton">Loading workspace…</div>
+        </section>
+        <section class="card flow-panel">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">YOUR AUTOMATION MAP</div>
+              <h2>Configured routing</h2>
+              <p class="muted">
+                All matching rules contribute actions. Each action runs once per
+                message.
+              </p>
+            </div>
+            <span class="badge blue">Configuration view</span>
+          </div>
+          <div class="flow-legend">
+            <span><i class="dot"></i> Enabled</span
+            ><span><i class="dot gray"></i> Disabled</span
+            ><span>Choose a rule or action to explore its connections</span>
+          </div>
+          <div id="flow" aria-label="Configured routing flow"></div>
+          <div id="flow-detail" hidden></div>
+        </section>
+        <div class="activity-grid">
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <div class="eyebrow">INCOMING</div>
+                <h2>Recent messages</h2>
+              </div>
+              <a class="text-link" href="/messages">All messages ↗</a>
+            </div>
+            <div id="recent-messages"></div>
+          </section>
+          <section class="card">
+            <div class="section-heading">
+              <div>
+                <div class="eyebrow">NEEDS ATTENTION</div>
+                <h2>Failed deliveries</h2>
+              </div>
+              <a class="text-link" href="/deliveries">All deliveries ↗</a>
+            </div>
+            <div id="recent-failures"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "smtp2x-ui-checks",
+  "private": true,
+  "scripts": {
+    "test:ui": "playwright test",
+    "screenshots": "playwright test --project=chromium --grep 'README screenshots'",
+    "pretest:ui": "mvn -q test-compile dependency:build-classpath -Dmdep.outputFile=target/ui-classpath.txt",
+    "prescreenshots": "mvn -q test-compile dependency:build-classpath -Dmdep.outputFile=target/ui-classpath.txt"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
