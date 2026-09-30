@@ -1,10 +1,10 @@
-image: { repository: ghcr.io/wenisch-tech/smtp2x, tag: "", pullPolicy: IfNotPresent }
+image: {repository: ghcr.io/wenisch-tech/smtp2x, tag: "0.1.0", pullPolicy: IfNotPresent}
 replicaCount: 1
 service:
-  http: { type: ClusterIP, port: 8080 }
-  smtp: { type: LoadBalancer, port: 2525 }
-ingress: { enabled: false, className: "", host: smtp2x.example.com, tls: [] }
-persistence: { enabled: true, storageClassName: "", size: 10Gi }
-resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: "2", memory: 2Gi } }
+  http: {type: ClusterIP, port: 8080}
+  smtp: {type: LoadBalancer, port: 2525}
+ingress: {enabled: false, className: "", host: smtp2x.example.com, tls: []}
+persistence: {enabled: true, storageClassName: "", size: 10Gi}
+resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {cpu: "2", memory: 2Gi}}
 env: {}
 secrets: {}
