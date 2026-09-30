@@ -94,7 +94,7 @@ export SMTP2X_CRYPTO_KEY="$(openssl rand -base64 32)"
 mvn spring-boot:run
 ```
 
-The SMTP listener stays disabled by default during local development. Add `SMTP2X_SMTP_ENABLED=true` when you are ready to accept traffic.
+The SMTP listener starts by default on port `2525`. Set `SMTP2X_SMTP_ENABLED=false` when you only want to configure or inspect SMTP2X without accepting SMTP traffic.
 
 ## Configure GitLab delivery
 
@@ -128,7 +128,7 @@ The SMTP server is configured through environment variables. Changes to port or 
 
 | Variable | Default | Description |
 |---|---:|---|
-| `SMTP2X_SMTP_ENABLED` | `false` | Starts the SMTP listener. |
+| `SMTP2X_SMTP_ENABLED` | `true` | Starts the SMTP listener. |
 | `SMTP2X_SMTP_PORT` | `2525` | Listener port. Use a load balancer or host port mapping for port 25. |
 | `SMTP2X_SMTP_AUTHENTICATION` | `DISABLED` | `DISABLED`, `OPTIONAL`, or `REQUIRED`. SMTP credentials are separate from UI accounts. |
 | `SMTP2X_SMTP_STARTTLS` | `DISABLED` | `DISABLED`, `OPTIONAL`, or `REQUIRED`. |

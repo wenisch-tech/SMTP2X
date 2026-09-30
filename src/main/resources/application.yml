@@ -18,7 +18,7 @@ smtp2x:
   crypto:
     key: ${SMTP2X_CRYPTO_KEY:}
   smtp:
-    enabled: ${SMTP2X_SMTP_ENABLED:false}
+    enabled: ${SMTP2X_SMTP_ENABLED:true}
     port: ${SMTP2X_SMTP_PORT:2525}
     max-message-bytes: ${SMTP2X_SMTP_MAX_MESSAGE_BYTES:10485760}
     max-recipients: ${SMTP2X_SMTP_MAX_RECIPIENTS:100}
