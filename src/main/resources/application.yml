@@ -11,7 +11,7 @@ smtp2x:
   data-directory: ${SMTP2X_DATA_DIRECTORY:./data}
   security:
     initial-admin-email: ${SMTP2X_ADMIN_EMAIL:admin@smtp2x.local}
-    initial-admin-password: ${SMTP2X_ADMIN_PASSWORD:}
+    initial-admin-password: ${SMTP2X_ADMIN_PASSWORD:admin}
     oidc:
       enabled: ${SMTP2X_SECURITY_OIDC_ENABLED:false}
       role-mapping-enabled: ${SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED:false}

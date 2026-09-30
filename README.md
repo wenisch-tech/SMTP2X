@@ -43,7 +43,7 @@ SMTP2X is deliberately a single-instance application in this release. A persiste
 
 ## Quick start
 
-SMTP2X requires `SMTP2X_ADMIN_PASSWORD` on its first start to create the initial local administrator.
+SMTP2X creates a local administrator on first start with `admin@smtp2x.local` / `admin`. Set `SMTP2X_ADMIN_PASSWORD` before startup to choose another password. When that environment variable is present, SMTP2X applies it to the bootstrap administrator on **every** startup, so it is an intentional deployment-level password override.
 
 Integration secrets are encrypted with a 32-byte AES key. If `SMTP2X_CRYPTO_KEY` is absent, SMTP2X creates one at `/app/data/encryption.key` and reuses it on later starts. Keep the data volume: losing that file makes existing GitLab and webhook credentials unreadable. Set `SMTP2X_CRYPTO_KEY` when your secret-management policy requires the key to live outside the application volume.
 
@@ -57,19 +57,17 @@ docker run --rm \
   -p 8080:8080 \
   -p 2525:2525 \
   -v smtp2x-data:/app/data \
-  -e SMTP2X_ADMIN_PASSWORD='change-me-now' \
   -e SMTP2X_SMTP_ENABLED=true \
   ghcr.io/wenisch-tech/smtp2x:latest
 ```
 
-Open <http://localhost:8080> and sign in as `admin@smtp2x.local` with the password you supplied. Create a GitLab action and a routing rule before pointing an application at `localhost:2525`; SMTP2X correctly rejects messages that match no enabled action.
+Open <http://localhost:8080> and sign in as `admin@smtp2x.local` / `admin`. Set `SMTP2X_ADMIN_PASSWORD='change-me-now'` in a real deployment, or change the password in **Administration**. Create a GitLab action and a routing rule before pointing an application at `localhost:2525`; SMTP2X correctly rejects messages that match no enabled action.
 
 ### Docker Compose
 
 From a source checkout:
 
 ```bash
-export SMTP2X_ADMIN_PASSWORD='change-me-now'
 docker compose up --build
 ```
 
@@ -80,7 +78,6 @@ The Compose volume keeps H2 data, messages, attachments, encrypted integration c
 Prerequisites: JDK 25 and Maven 3.9+.
 
 ```bash
-export SMTP2X_ADMIN_PASSWORD='change-me-now'
 mvn spring-boot:run
 ```
 
