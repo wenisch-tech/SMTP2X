@@ -4,7 +4,13 @@
   <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>4.1.1</version><relativePath/></parent>
   <groupId>tech.wenisch</groupId><artifactId>smtp2x</artifactId><version>0.1.0</version>
   <name>SMTP2X</name><description>Turn SMTP notifications into issues, Mattermost messages, and webhooks</description>
-  <properties><java.version>25</java.version><subethasmtp.version>7.1.7</subethasmtp.version><springdoc.version>3.1.1</springdoc.version></properties>
+  <properties>
+    <java.version>25</java.version>
+    <subethasmtp.version>7.1.7</subethasmtp.version>
+    <springdoc.version>3.1.1</springdoc.version>
+    <tomcat.version>11.0.25</tomcat.version>
+    <jackson-bom.version>3.1.6</jackson-bom.version>
+  </properties>
   <dependencies>
     <!-- Spring Boot 4 defaults to Jackson 3; SMTP2X uses the stable Jackson 2 tree for integration payloads. -->
     <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>2.22.3</version></dependency>
