@@ -1,0 +1,9 @@
+.git/
+.github/
+.idea/
+.vscode/
+README.md
+docs/
+*.log
+# The Maven package produced by CI is intentionally included. Dockerfile copies
+# target/smtp2x-*.jar into the Chainguard JRE runtime image.

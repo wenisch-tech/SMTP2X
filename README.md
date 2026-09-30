@@ -210,16 +210,18 @@ Flyway creates and upgrades the schema automatically.
 The supplied chart creates separate HTTP and SMTP Services, a persistent volume claim, and HTTP health probes. SMTP2X must run as **one replica** in this release because attachment storage is local to the pod.
 
 ```bash
-helm install smtp2x ./charts/smtp2x \
+helm install smtp2x oci://ghcr.io/wenisch-tech/helm-charts/smtp2x \
   --namespace smtp2x --create-namespace \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now' \
   --set env.SMTP2X_SMTP_ENABLED=true
 ```
 
+Each main-branch release publishes this chart to `oci://ghcr.io/wenisch-tech/helm-charts/smtp2x`. Use `./charts/smtp2x` in the commands above when developing from a source checkout.
+
 For PostgreSQL, add the profile and data-source values:
 
 ```bash
-helm upgrade --install smtp2x ./charts/smtp2x \
+helm upgrade --install smtp2x oci://ghcr.io/wenisch-tech/helm-charts/smtp2x \
   --namespace smtp2x --create-namespace \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now' \
   --set-string secrets.SPRING_DATASOURCE_PASSWORD='database-password' \

@@ -1,44 +1,234 @@
 name: CI
+
 on:
-  pull_request: { branches: ['**'] }
-  push: { branches: ['**'] }
-permissions: { contents: read, packages: write, attestations: write, id-token: write }
+  workflow_dispatch:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  versioning:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag_version.outputs.new_tag }}
+      version: ${{ steps.version.outputs.version }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
+      image: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with: { distribution: temurin, java-version: '25', cache: maven }
-      - run: mvn -B verify
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with: { name: test-reports, path: 'target/surefire-reports' }
-  container:
-    needs: verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with: { distribution: temurin, java-version: '25', cache: maven }
-      - run: mvn -B -DskipTests package
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        with: { registry: ghcr.io, username: '${{ github.actor }}', password: '${{ secrets.GITHUB_TOKEN }}' }
-      - uses: docker/build-push-action@v7
         with:
-          push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-          tags: 'ghcr.io/wenisch-tech/smtp2x:${{ github.sha }}'
-          build-args: |-
-            BUILD_VERSION=${{ github.sha }}
-            BUILD_REVISION=${{ github.sha }}
-      - uses: aquasecurity/setup-trivy@v0.2.6
-      - run: trivy fs --scanners vuln --severity CRITICAL,HIGH,MEDIUM .
-  chart:
-    needs: verify
+          fetch-depth: 0
+      - id: image
+        name: Normalize image name
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - id: tag_version
+        name: Bump version and generate changelog
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ github.token }}
+          release_branches: main
+          default_bump: patch
+          dry_run: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+      - id: version
+        name: Derive application version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ steps.tag_version.outputs.new_tag }}'
+          if [ -z "$tag" ]; then tag='v0.1.0'; fi
+          version="${tag#v}"
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            version="${version}-pr.${{ github.event.number }}.${{ github.run_number }}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: versioning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Set Maven version
+        run: mvn -B versions:set -DnewVersion=${{ needs.versioning.outputs.version }} -DgenerateBackupPoms=false
+      - name: Verify
+        run: mvn -B verify
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v3
+        with:
+          name: Maven tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: target/surefire-reports
+
+  chart:
+    needs: versioning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
-      - run: helm lint charts/smtp2x && helm template smtp2x charts/smtp2x >/dev/null
+      - name: Lint and render Helm chart
+        run: |
+          helm lint charts/smtp2x
+          helm template smtp2x charts/smtp2x >/dev/null
+
+  container:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [versioning, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Set Maven version
+        run: mvn -B versions:set -DnewVersion=${{ needs.versioning.outputs.version }} -DgenerateBackupPoms=false
+      - name: Build application JAR
+        run: mvn -B -DskipTests package
+      - id: build_meta
+        name: Generate build metadata
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        name: Build and publish container image
+        uses: docker/build-push-action@v7
+        with:
+          # Path context is intentional: it includes target/smtp2x-*.jar built above.
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: |
+            ${{ needs.versioning.outputs.image }}:${{ needs.versioning.outputs.version }}
+            ${{ needs.versioning.outputs.image }}:latest
+          build-args: |
+            BUILD_DATE=${{ steps.build_meta.outputs.date }}
+            BUILD_VERSION=${{ needs.versioning.outputs.version }}
+            BUILD_REVISION=${{ github.sha }}
+      - name: Set up Trivy
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/setup-trivy@v0.2.6
+      - name: Scan image with Trivy
+        if: github.event_name == 'pull_request'
+        run: |
+          trivy image --format table --output trivy-report.txt \
+            --scanners vuln --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM \
+            '${{ needs.versioning.outputs.image }}:${{ needs.versioning.outputs.version }}'
+      - name: Upload Trivy report
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-report-${{ github.run_id }}
+          path: trivy-report.txt
+          if-no-files-found: warn
+      - name: Add Trivy report to pull request
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            let report = fs.existsSync('trivy-report.txt') ? fs.readFileSync('trivy-report.txt', 'utf8') : 'Trivy did not produce a report.';
+            if (report.length > 60000) report = `${report.slice(0, 60000)}\n… output truncated …`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+              body: ['## Trivy vulnerability report', '', '```text', report, '```'].join('\n')
+            });
+      - name: Attest published image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ needs.versioning.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [versioning, verify, chart, container]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Set release version
+        run: mvn -B versions:set -DnewVersion=${{ needs.versioning.outputs.version }} -DgenerateBackupPoms=false
+      - name: Update chart version
+        run: |
+          sed -i 's/^version: .*/version: ${{ needs.versioning.outputs.version }}/' charts/smtp2x/Chart.yaml
+          sed -i 's/^appVersion: .*/appVersion: "${{ needs.versioning.outputs.version }}"/' charts/smtp2x/Chart.yaml
+      - name: Build release artifacts
+        run: |
+          mvn -B -DskipTests package org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+          mkdir -p release
+          cp target/smtp2x-*.jar release/
+          cp target/bom.* release/ 2>/dev/null || true
+          helm package charts/smtp2x --destination release
+      - name: Publish chart as OCI package
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # A fine-grained token with packages:write for wenisch-tech/helm-charts may be supplied
+          # when the package is not yet linked to this repository.
+          password: ${{ secrets.HELM_CHARTS_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Push chart to wenisch-tech/helm-charts
+        run: helm push release/smtp2x-${{ needs.versioning.outputs.version }}.tgz oci://ghcr.io/wenisch-tech/helm-charts
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.versioning.outputs.tag }}
+          name: ${{ needs.versioning.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            release/*.jar
+            release/*.json
+            release/*.xml
+            release/*.tgz

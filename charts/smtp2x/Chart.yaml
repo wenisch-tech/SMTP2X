@@ -6,4 +6,6 @@ version: 0.1.0
 appVersion: "0.1.0"
 home: https://github.com/wenisch-tech/SMTP2X
 sources: [https://github.com/wenisch-tech/SMTP2X]
-annotations: { artifacthub.io/license: AGPL-3.0 }
+annotations:
+  artifacthub.io/license: AGPL-3.0
+  org.opencontainers.image.source: https://github.com/wenisch-tech/helm-charts
