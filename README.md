@@ -121,6 +121,8 @@ The SMTP server is configured through environment variables. Changes to port or 
 | `SMTP2X_SMTP_ENABLED` | `true` | Starts the SMTP listener. |
 | `SMTP2X_SMTP_PORT` | `2525` | Listener port. Use a load balancer or host port mapping for port 25. |
 | `SMTP2X_SMTP_AUTHENTICATION` | `DISABLED` | `DISABLED`, `OPTIONAL`, or `REQUIRED`. SMTP credentials are separate from UI accounts. |
+| `SMTP2X_SMTP_USERNAME` | empty | Initial dedicated SMTP account username. Set together with `SMTP2X_SMTP_PASSWORD`. |
+| `SMTP2X_SMTP_PASSWORD` | empty | Initial dedicated SMTP account password. It is stored as a password hash. |
 | `SMTP2X_SMTP_STARTTLS` | `DISABLED` | `DISABLED`, `OPTIONAL`, or `REQUIRED`. |
 | `SMTP2X_SMTP_TLS_KEYSTORE_PATH` | — | PKCS#12 keystore path for STARTTLS. Mount it into the container. |
 | `SMTP2X_SMTP_TLS_KEYSTORE_PASSWORD` | — | Password for the STARTTLS PKCS#12 keystore. |
@@ -130,6 +132,17 @@ The SMTP server is configured through environment variables. Changes to port or 
 | `SMTP2X_SMTP_MAX_CONNECTIONS` | `50` | Maximum concurrent SMTP connections. |
 
 When STARTTLS is `OPTIONAL` or `REQUIRED`, provide both keystore variables. SMTP2X refuses startup for `REQUIRED` without usable certificate material. A client allowlist applies to anonymous and authenticated clients, so ensure the network address survives any TCP proxy or load balancer.
+
+To require SMTP authentication from the first start, supply a dedicated application account:
+
+```bash
+SMTP2X_SMTP_AUTHENTICATION=REQUIRED \
+SMTP2X_SMTP_USERNAME=monitoring-app \
+SMTP2X_SMTP_PASSWORD='a-long-random-password' \
+docker compose up --build
+```
+
+The username and password must be supplied together. SMTP2X creates this account only when the username does not already exist, so changing the environment password later does not overwrite a deployed credential or invalidate active senders.
 
 ## Authentication and OIDC
 

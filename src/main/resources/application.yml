@@ -31,6 +31,9 @@ smtp2x:
     # STARTTLS uses a PKCS#12 keystore. The certificate/private-key fields are retained for external TLS termination documentation.
     tls-keystore-path: ${SMTP2X_SMTP_TLS_KEYSTORE_PATH:}
     tls-keystore-password: ${SMTP2X_SMTP_TLS_KEYSTORE_PASSWORD:}
+    # Creates a dedicated SMTP account on first start when both are supplied.
+    username: ${SMTP2X_SMTP_USERNAME:}
+    password: ${SMTP2X_SMTP_PASSWORD:}
   retention:
     content-days: ${SMTP2X_RETENTION_CONTENT_DAYS:30}
     audit-days: ${SMTP2X_RETENTION_AUDIT_DAYS:365}

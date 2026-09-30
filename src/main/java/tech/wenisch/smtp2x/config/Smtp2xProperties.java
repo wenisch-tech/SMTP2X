@@ -10,7 +10,7 @@ public record Smtp2xProperties(String dataDirectory, Security security, Crypto c
   public record Crypto(String key) {}
   public record Smtp(boolean enabled, int port, int maxMessageBytes, int maxRecipients, int maxConnections,
       Mode authentication, Mode starttls, List<String> allowedCidrs, String certificatePath, String privateKeyPath,
-      String tlsKeystorePath, String tlsKeystorePassword) {}
+      String tlsKeystorePath, String tlsKeystorePassword, String username, String password) {}
   public enum Mode { DISABLED, OPTIONAL, REQUIRED }
   public record Retention(int contentDays, int auditDays) {}
 }

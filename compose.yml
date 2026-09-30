@@ -5,5 +5,7 @@ services:
     environment:
       SMTP2X_ADMIN_PASSWORD: ${SMTP2X_ADMIN_PASSWORD:?Set SMTP2X_ADMIN_PASSWORD}
       SMTP2X_SMTP_ENABLED: "true"
+      SMTP2X_SMTP_USERNAME: ${SMTP2X_SMTP_USERNAME:-}
+      SMTP2X_SMTP_PASSWORD: ${SMTP2X_SMTP_PASSWORD:-}
     volumes: [smtp2x-data:/app/data]
 volumes: { smtp2x-data: {} }
