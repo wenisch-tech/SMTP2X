@@ -79,7 +79,8 @@ jobs:
 
       - name: Generate Helm values schema
         run: |
-          helm plugin install https://github.com/karuppiah7890/helm-schema-gen.git
+          # Git-based plugins do not support Helm signature verification.
+          helm plugin install https://github.com/karuppiah7890/helm-schema-gen.git --verify=false
           helm schema-gen charts/smtp2x/values.yaml > charts/smtp2x/values.schema.json
 
       - name: Build release artifacts and SBOM
