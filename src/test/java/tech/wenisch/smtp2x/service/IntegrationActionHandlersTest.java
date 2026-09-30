@@ -23,6 +23,7 @@ class IntegrationActionHandlersTest {
   private String baseUrl;
   private final ConcurrentHashMap<String, AtomicReference<String>> bodies = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, AtomicReference<String>> authorization = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, AtomicReference<String>> methods = new ConcurrentHashMap<>();
 
   @BeforeEach
   void start() throws Exception {
@@ -82,12 +83,20 @@ class IntegrationActionHandlersTest {
         .deliver(message(), config);
 
     assertThat(result.remoteUrl()).isEqualTo("https://forgejo.example/acme/alerts/issues/23");
+    assertThat(result.cleanupReference()).isEqualTo("23");
     assertThat(authorization.get("/api/v1/repos/acme/alerts/issues").get())
         .isEqualTo("token forgejo-token");
     assertThat(bodies.get("/api/v1/repos/acme/alerts/issues").get())
         .contains("\"title\":\"Database unavailable\"")
         .contains("\"labels\":[5,8]")
         .contains("\"assignees\":[\"oncall\"]");
+
+    new ForgejoIssueActionHandler(json, secrets, new ActionHttpClientFactory())
+        .cleanup(config, result.cleanupReference());
+
+    assertThat(methods.get("/api/v1/repos/acme/alerts/issues/23").get()).isEqualTo("DELETE");
+    assertThat(authorization.get("/api/v1/repos/acme/alerts/issues/23").get())
+        .isEqualTo("token forgejo-token");
   }
 
   @Test
@@ -120,9 +129,15 @@ class IntegrationActionHandlersTest {
   private void endpoint(String path, int status, String response) {
     bodies.put(path, new AtomicReference<>());
     authorization.put(path, new AtomicReference<>());
+    methods.put(path, new AtomicReference<>());
     server.createContext(path, exchange -> {
-      bodies.get(path).set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-      authorization.get(path).set(exchange.getRequestHeaders().getFirst("Authorization"));
+      String requestPath = exchange.getRequestURI().getPath();
+      bodies.computeIfAbsent(requestPath, ignored -> new AtomicReference<>())
+          .set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+      authorization.computeIfAbsent(requestPath, ignored -> new AtomicReference<>())
+          .set(exchange.getRequestHeaders().getFirst("Authorization"));
+      methods.computeIfAbsent(requestPath, ignored -> new AtomicReference<>())
+          .set(exchange.getRequestMethod());
       respond(exchange, status, response);
     });
   }

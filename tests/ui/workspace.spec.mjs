@@ -333,6 +333,10 @@ test("GitLab action validation, type switching, and escaped names", async ({
     .click();
   await expect(page.locator("#action-error")).toBeVisible();
   await page.getByLabel("Email mappings").fill("{}");
+  await form
+    .locator('[data-action-fields="GITLAB_ISSUE"]')
+    .getByLabel("Auto-delete issue after")
+    .fill("10h");
   await page.route("**/api/v1/actions/gitlab/assignees/preview", (route) =>
     route.fulfill({
       json: {
@@ -359,6 +363,10 @@ test("GitLab action validation, type switching, and escaped names", async ({
     actions.find((action) => action.name === "<img src=x onerror=alert(1)>")
       .configuration.ignoreTlsErrors,
   ).toBe(true);
+  expect(
+    actions.find((action) => action.name === "<img src=x onerror=alert(1)>")
+      .configuration.autoDeleteAfter,
+  ).toBe("10h");
 });
 
 test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
@@ -407,6 +415,10 @@ test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
   await create();
   await expect(page.locator("#action-error")).toContainText("positive numbers");
   await page.getByLabel("Label IDs").fill("7\n12");
+  await page
+    .locator('[data-action-fields="FORGEJO_ISSUE"]')
+    .getByLabel("Auto-delete issue after")
+    .fill("30d");
   await create();
   await expect(page.locator("#action-list")).toContainText(
     "Browser Forgejo issues",
@@ -438,6 +450,7 @@ test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
   expect(forgejo.configuration.accessToken).toBe("");
   expect(forgejo.configuration.accessTokenConfigured).toBe(true);
   expect(forgejo.configuration.ignoreTlsErrors).toBe(true);
+  expect(forgejo.configuration.autoDeleteAfter).toBe("30d");
   expect(mattermost.configuration.webhookUrl).toBe("");
   expect(mattermost.configuration.webhookUrlConfigured).toBe(true);
   expect(mattermost.configuration.ignoreTlsErrors).toBe(true);

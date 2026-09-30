@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import tech.wenisch.smtp2x.domain.ActionType;
 
 @Component
-public class ForgejoIssueActionHandler implements ActionHandler {
+public class ForgejoIssueActionHandler implements CleanupActionHandler {
   private final ObjectMapper json;
   private final SecretCipher secrets;
   private final ActionHttpClientFactory clients;
@@ -58,12 +58,39 @@ public class ForgejoIssueActionHandler implements ActionHandler {
             boolean retry = status == 429 || status >= 500;
             throw new DeliveryException("Forgejo returned " + result.getStatusCode(), retry);
           });
+      String number = response.path("number").asText();
       return new DeliveryResult(response.path("html_url").asText(),
-          "Forgejo issue #" + response.path("number").asText() + " created", "");
+          "Forgejo issue #" + number + " created", "", number);
     } catch (DeliveryException e) {
       throw e;
     } catch (Exception e) {
       throw new DeliveryException("Forgejo issue creation failed", true, e);
+    }
+  }
+
+  @Override
+  public void cleanup(JsonNode config, String resourceReference) throws DeliveryException {
+    String base = required(config, "baseUrl").replaceAll("/$", "");
+    String[] repository = repository(config);
+    String token = secrets.decrypt(required(config, "accessToken"));
+    long issueNumber = positiveReference(resourceReference);
+    String url = base + "/api/v1/repos/" + segment(repository[0]) + "/"
+        + segment(repository[1]) + "/issues/" + issueNumber;
+    try {
+      clients.forConfiguration(config).delete().uri(url)
+          .header(HttpHeaders.AUTHORIZATION, "token " + token)
+          .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+          .exchange((request, result) -> {
+            int status = result.getStatusCode().value();
+            if (result.getStatusCode().is2xxSuccessful() || status == 404) return null;
+            boolean retry = status == 429 || status >= 500;
+            throw new DeliveryException("Forgejo cleanup returned " + result.getStatusCode(),
+                retry);
+          });
+    } catch (DeliveryException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new DeliveryException("Forgejo cleanup failed", true, e);
     }
   }
 
@@ -89,6 +116,16 @@ public class ForgejoIssueActionHandler implements ActionHandler {
     String value = config.path(field).asText();
     if (value.isBlank()) throw new DeliveryException("Forgejo action requires " + field, false);
     return value;
+  }
+
+  private long positiveReference(String value) throws DeliveryException {
+    try {
+      long result = Long.parseLong(value);
+      if (result <= 0) throw new NumberFormatException();
+      return result;
+    } catch (NumberFormatException e) {
+      throw new DeliveryException("Forgejo issue reference is invalid", false, e);
+    }
   }
 
   private String segment(String value) {

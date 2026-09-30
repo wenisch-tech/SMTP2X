@@ -18,13 +18,14 @@ import org.springframework.web.context.WebApplicationContext;
 import tech.wenisch.smtp2x.domain.*;
 import tech.wenisch.smtp2x.repository.*;
 
-@SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:workspace;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "smtp2x.smtp.enabled=false", "smtp2x.data-directory=target/workspace-test-data", "smtp2x.delivery.poll-ms=3600000"})
+@SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:workspace;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "smtp2x.smtp.enabled=false", "smtp2x.data-directory=target/workspace-test-data", "smtp2x.delivery.poll-ms=3600000", "smtp2x.cleanup.poll-ms=3600000"})
 class WorkspaceIntegrationTest {
   @Autowired WebApplicationContext context;
   @Autowired ActionConfigurationRepository actions;
   @Autowired RoutingRuleRepository rules;
   @Autowired InboundMessageRepository messages;
   @Autowired DeliveryJobRepository deliveries;
+  @Autowired ExternalCleanupJobRepository cleanups;
   @Autowired AppUserRepository users;
   @Autowired ObjectMapper json;
   MockMvc mvc;
@@ -32,7 +33,7 @@ class WorkspaceIntegrationTest {
 
   @BeforeEach void setup() {
     mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
-    deliveries.deleteAll();messages.deleteAll();rules.deleteAll();actions.deleteAll();
+    cleanups.deleteAll();deliveries.deleteAll();messages.deleteAll();rules.deleteAll();actions.deleteAll();
     if(users.findByEmailIgnoreCase(viewer).isEmpty())users.save(new AppUser(viewer,"unused",UserRole.VIEWER,false,false));
   }
   ActionConfiguration action(String name) {return actions.save(new ActionConfiguration(name,ActionType.WEBHOOK,"{\"url\":\"https://user:secret@hooks.example.com/private-token?key=secret#secret\",\"bearerToken\":\"hidden-secret\"}"));}
@@ -100,6 +101,15 @@ class WorkspaceIntegrationTest {
         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.error").value("GitHub repository must use owner/repository"));
+
+    configuration.put("baseUrl","https://gitlab.example.com");
+    configuration.put("project","acme/alerts");
+    configuration.put("autoDeleteAfter","next week");
+    request.put("name","GitLab");request.put("type","GITLAB_ISSUE");
+    mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("5m, 10h, or 30d")));
   }
   @Test void dashboardAggregatesAreBoundedAndExcludeSensitiveData() throws Exception {
     var a=action("Ops");
@@ -120,5 +130,16 @@ class WorkspaceIntegrationTest {
       .andExpect(jsonPath("$.recentMessages.length()").value(5)).andExpect(jsonPath("$.recentFailures.length()").value(5))
       .andExpect(jsonPath("$.actions[0].destination").value("hooks.example.com")).andExpect(jsonPath("$.rules[0].actionIds[0]").value(a.getId().toString())).andReturn();
     assertThat(result.getResponse().getContentAsString()).doesNotContain("secret","private","configurationSnapshot","textBody","htmlBody","bearerToken");
+  }
+  @Test void cleanupApiExposesStatusWithoutConfigurationSnapshot() throws Exception {
+    cleanups.save(new ExternalCleanupJob(UUID.randomUUID(),ActionType.GITLAB_ISSUE,
+        "{\"accessToken\":\"enc:cleanup-secret\"}","42",java.time.Instant.now().plusSeconds(300)));
+    String result=mvc.perform(get("/api/v1/cleanups").with(user(viewer).roles("VIEWER")))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].actionType").value("GITLAB_ISSUE"))
+      .andExpect(jsonPath("$[0].status").value("PENDING"))
+      .andExpect(jsonPath("$[0].dueAt").isNotEmpty())
+      .andReturn().getResponse().getContentAsString();
+    assertThat(result).doesNotContain("cleanup-secret","configurationSnapshot","resourceReference");
   }
 }

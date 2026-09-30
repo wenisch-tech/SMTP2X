@@ -17,6 +17,7 @@ import tech.wenisch.smtp2x.domain.InboundMessage;
 class GitLabActionHandlerTest {
   private HttpServer server;
   private final AtomicReference<String> issue = new AtomicReference<>();
+  private final AtomicReference<String> deleted = new AtomicReference<>();
   private GitLabActionHandler handler;
   private ObjectMapper json;
 
@@ -24,7 +25,7 @@ class GitLabActionHandlerTest {
     json = new ObjectMapper();
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext("/api/v4/users", this::users);
-    server.createContext("/api/v4/projects/group%2Fproject/issues", this::issue);
+    server.createContext("/api/v4/projects/group/project/issues", this::issue);
     server.start();
     var properties = new Smtp2xProperties("", null,
         new Smtp2xProperties.Crypto("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), null, null);
@@ -48,8 +49,12 @@ class GitLabActionHandlerTest {
     var result = handler.deliver(new MessageData(message, List.of("alice@example.com"), List.of()), config);
 
     assertThat(result.remoteUrl()).isEqualTo("https://gitlab.example/issues/7");
+    assertThat(result.cleanupReference()).isEqualTo("7");
     assertThat(issue.get()).contains("\"assignee_ids\":[101,202]");
     assertThat(issue.get()).contains("\"title\":\"Alert\"").contains("\"description\":\"Details\"");
+
+    handler.cleanup(config, result.cleanupReference());
+    assertThat(deleted.get()).isEqualTo("DELETE /api/v4/projects/group%2Fproject/issues/7");
   }
 
   private void users(HttpExchange request) throws java.io.IOException {
@@ -59,6 +64,11 @@ class GitLabActionHandlerTest {
     respond(request, 200, body);
   }
   private void issue(HttpExchange request) throws java.io.IOException {
+    if (request.getRequestMethod().equals("DELETE")) {
+      deleted.set(request.getRequestMethod() + " " + request.getRequestURI().getRawPath());
+      respond(request, 204, "");
+      return;
+    }
     issue.set(new String(request.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
     respond(request, 201, "{\"iid\":7,\"web_url\":\"https://gitlab.example/issues/7\",\"assignees\":[{\"id\":101},{\"id\":202}]}");
   }

@@ -91,6 +91,7 @@ public class ActionConfigurationService {
         require(config, "project", "GitLab");
         require(config, "accessToken", "GitLab");
         httpUrl(config, "baseUrl", "GitLab");
+        AutoDeleteDuration.parse(config.path("autoDeleteAfter").asText());
       }
       case GITHUB_ISSUE -> {
         require(config, "baseUrl", "GitHub");
@@ -103,6 +104,7 @@ public class ActionConfigurationService {
         repository(config, "Forgejo");
         require(config, "accessToken", "Forgejo");
         httpUrl(config, "baseUrl", "Forgejo");
+        AutoDeleteDuration.parse(config.path("autoDeleteAfter").asText());
         config.path("labelIds").forEach(label -> {
           if (!label.canConvertToLong() || label.asLong() <= 0)
             throw new IllegalArgumentException("Forgejo label IDs must be positive numbers");

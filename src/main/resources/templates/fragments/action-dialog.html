@@ -79,7 +79,18 @@
           ><label
             >Email mappings <span class="optional">JSON object</span
             ><textarea name="mappings" rows="2">{}</textarea></label
-          ><button type="button" class="btn secondary" id="preview-assignees">
+          ><label
+            >Auto-delete issue after <span class="optional">optional</span
+            ><input
+              name="gitlabAutoDeleteAfter"
+              placeholder="5m, 10h, or 30d"
+              pattern="[1-9][0-9]*[mMhHdD]"
+              title="Use a positive number followed by m, h, or d"
+          /></label>
+          <p class="muted small">
+            Permanently deletes the created GitLab issue after this duration.
+          </p>
+          <button type="button" class="btn secondary" id="preview-assignees">
             Validate assignees
           </button>
           <p id="preview-result" class="muted small" role="status"></p>
@@ -161,6 +172,17 @@ Recipients: {{recipients}}</textarea></label
             >Assignee usernames <span class="optional">one per line</span
             ><textarea name="forgejoAssignees" rows="2"></textarea>
           </label>
+          <label
+            >Auto-delete issue after <span class="optional">optional</span
+            ><input
+              name="forgejoAutoDeleteAfter"
+              placeholder="5m, 10h, or 30d"
+              pattern="[1-9][0-9]*[mMhHdD]"
+              title="Use a positive number followed by m, h, or d"
+          /></label>
+          <p class="muted small">
+            Permanently deletes the created Forgejo issue after this duration.
+          </p>
         </fieldset>
         <fieldset data-action-fields="MATTERMOST_MESSAGE" hidden disabled>
           <label

@@ -102,6 +102,8 @@ The dashboard’s **Configured routing** view shows the current configuration. C
 
 Every action includes **Ignore TLS certificate errors** for internal services that use a self-signed or otherwise untrusted certificate. It trusts any server certificate and skips hostname verification for that action only. Leave it disabled unless you control the destination and network; strict TLS validation remains the default.
 
+GitLab and Forgejo issue actions can also schedule permanent deletion with **Auto-delete issue after**. Enter a positive duration such as `5m`, `10h`, or `30d`, or leave it empty to keep issues. Cleanup jobs are stored separately from retained messages, survive restarts, retry temporary provider failures, and appear in the audit history. Deletion uses the same encrypted token and TLS setting captured when the delivery was queued.
+
 The GitLab action needs:
 
 | Setting | Description |
@@ -112,6 +114,7 @@ The GitLab action needs:
 | Use recipient as assignee | Adds all accepted SMTP envelope recipients to the assignee lookup. It does not use `To` or `Cc` message headers. |
 | Default assignee emails | Adds these addresses for every matching message, whether or not recipient assignment is enabled. |
 | Email mappings | Optional JSON map from email address to numeric GitLab user ID, for example `{"oncall@example.com": 42}`. |
+| Auto-delete issue after | Optional duration such as `5m`, `10h`, or `30d`. The token must be allowed to delete the created issue. |
 
 SMTP2X uses mappings first, then performs an exact public-email lookup. Recipient-derived and default assignees are combined and deduplicated. GitLab Premium and Ultimate support the resulting `assignee_ids` list. If no configured address resolves to an assignable GitLab user, SMTP2X still creates the issue without an assignee and records a delivery warning.
 
@@ -151,6 +154,7 @@ Choose **Forgejo issue** when creating an action. Configure:
 | Title and body templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
 | Label IDs | Numeric Forgejo label IDs, one per line. |
 | Assignees | Forgejo usernames, one per line. |
+| Auto-delete issue after | Optional duration such as `5m`, `10h`, or `30d`. The token must be allowed to delete the created issue. |
 
 SMTP2X calls `POST /api/v1/repos/{owner}/{repo}/issues` and authenticates through the HTTP `Authorization` header. Forgejo exposes the instance-specific OpenAPI reference under `/api/swagger` when Swagger is enabled. See the [Forgejo API guide](https://forgejo.org/docs/latest/user/api/) for authentication and instance API documentation.
 

@@ -41,8 +41,8 @@ const date = (value) =>
     : "—";
 const state = (enabled) =>
   `<span class="badge ${enabled ? "good" : ""}">${enabled ? "Enabled" : "Disabled"}</span>`;
-const statusBadge = (status) =>
-  `<span class="badge ${status === "SUCCEEDED" ? "good" : status === "FAILED" ? "bad" : status === "PENDING" || status === "RUNNING" ? "warn" : ""}">${escape(status.toLowerCase().replaceAll("_", " "))}</span>`;
+const statusBadge = (status, label = status) =>
+  `<span class="badge ${status === "SUCCEEDED" ? "good" : status === "FAILED" ? "bad" : status === "PENDING" || status === "RUNNING" ? "warn" : ""}">${escape(label.toLowerCase().replaceAll("_", " "))}</span>`;
 const empty = (title, description = "") =>
   `<div class="empty"><h3>${escape(title)}</h3>${escape(description)}</div>`;
 function notice(message, error = false, target = "#page-notice") {
@@ -152,6 +152,7 @@ function actionDialog(onCreated) {
           useRecipient: field("useRecipient").checked,
           defaultAssigneeEmails: lines("defaults"),
           assigneeEmailMappings: JSON.parse(field("mappings").value || "{}"),
+          autoDeleteAfter: field("gitlabAutoDeleteAfter").value.trim(),
         };
       case "GITHUB_ISSUE":
         return {
@@ -181,6 +182,7 @@ function actionDialog(onCreated) {
           bodyTemplate: field("forgejoBodyTemplate").value,
           labelIds,
           assignees: lines("forgejoAssignees"),
+          autoDeleteAfter: field("forgejoAutoDeleteAfter").value.trim(),
         };
       }
       case "MATTERMOST_MESSAGE":
@@ -669,10 +671,19 @@ async function dashboardPage() {
 }
 
 async function historyPage(page) {
-  const values = await api("/" + page);
-  let names = new Map();
-  if (page === "deliveries")
-    names = new Map((await api("/actions")).map((a) => [a.id, a.name]));
+  let values;
+  let names = new Map(),
+    cleanupByDelivery = new Map();
+  if (page === "deliveries") {
+    const [deliveries, actions, cleanups] = await Promise.all([
+      api("/deliveries"),
+      api("/actions"),
+      api("/cleanups"),
+    ]);
+    values = deliveries;
+    names = new Map(actions.map((a) => [a.id, a.name]));
+    cleanupByDelivery = new Map(cleanups.map((c) => [c.deliveryId, c]));
+  } else values = await api("/" + page);
   function remote(url) {
     try {
       const u = new URL(url);
@@ -682,6 +693,20 @@ async function historyPage(page) {
     } catch {
       return "";
     }
+  }
+  function cleanup(value) {
+    if (!value) return '<span class="muted">Kept</span>';
+    const labels = {
+      PENDING: "Scheduled",
+      RUNNING: "Deleting",
+      SUCCEEDED: "Deleted",
+      FAILED: "Failed",
+    };
+    const detail =
+      value.status === "PENDING"
+        ? `Due ${date(value.dueAt)}`
+        : value.lastError || "Cleanup complete";
+    return `${statusBadge(value.status, labels[value.status] || value.status)}<small>${escape(detail)}</small>`;
   }
   $("#history-rows").innerHTML = values
     .map((v) => {
@@ -693,7 +718,7 @@ async function historyPage(page) {
         return `<tr id="message-${v.id}"><td>${escape(date(v.receivedAt))}</td><td>${escape(v.envelopeFrom)}<small>To ${escape(recipients.join(", "))}</small></td><td>${escape(v.subject)}</td></tr>`;
       }
       if (page === "deliveries")
-        return `<tr id="delivery-${v.id}"><td>${statusBadge(v.status)}</td><td>${escape(names.get(v.actionId) || "Unavailable action")}</td><td>${v.attempts}</td><td>${remote(v.remoteUrl)}<small>${escape(v.warnings || v.diagnostics || "—")}</small></td></tr>`;
+        return `<tr id="delivery-${v.id}"><td>${statusBadge(v.status)}</td><td>${escape(names.get(v.actionId) || "Unavailable action")}</td><td>${v.attempts}</td><td>${cleanup(cleanupByDelivery.get(v.id))}</td><td>${remote(v.remoteUrl)}<small>${escape(v.warnings || v.diagnostics || "—")}</small></td></tr>`;
       return `<tr><td>${escape(date(v.occurredAt))}</td><td>${escape(v.actor)}</td><td>${escape(v.eventType.toLowerCase().replaceAll("_", " "))}</td><td>${escape(v.detail)}</td></tr>`;
     })
     .join("");
