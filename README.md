@@ -232,6 +232,34 @@ helm upgrade --install smtp2x oci://ghcr.io/wenisch-tech/helm-charts/smtp2x \
 
 The SMTP Service defaults to `LoadBalancer` and the HTTP Service defaults to `ClusterIP`. Configure your ingress controller or reverse proxy for HTTP, and verify that its TCP configuration preserves the client address before enforcing SMTP CIDR allowlists.
 
+## Releases and verification
+
+A successful main-branch build updates [CHANGELOG.md](CHANGELOG.md) from conventional commits, publishes the container and OCI Helm chart, attaches CycloneDX SBOMs and signed release artifacts, and records GitHub build provenance. The release tag is created only after verification, container publication, chart publication, signing, and attestation have succeeded.
+
+Use the immutable image digest shown in the GitHub release to verify its keyless Cosign signature:
+
+```bash
+cosign verify ghcr.io/wenisch-tech/smtp2x@sha256:<digest> \
+  --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+```
+
+Verify the GitHub build provenance for the same digest:
+
+```bash
+gh attestation verify oci://ghcr.io/wenisch-tech/smtp2x@sha256:<digest> \
+  --repo wenisch-tech/SMTP2X
+```
+
+Download `smtp2x-<version>.tgz` and its matching `.cosign.bundle` from the GitHub release, then verify the packaged Helm chart:
+
+```bash
+cosign verify-blob smtp2x-<version>.tgz \
+  --bundle smtp2x-<version>.tgz.cosign.bundle \
+  --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+```
+
 ## Observability and API
 
 - Liveness: `/actuator/health/liveness`

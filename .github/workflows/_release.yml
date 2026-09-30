@@ -1,0 +1,215 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      changelog:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
+      digest:
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Update CHANGELOG.md
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_CHANGELOG: ${{ inputs.changelog }}
+          RELEASE_IMAGE: ${{ inputs.image }}:${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          release_date="$(date -u +%Y-%m-%d)"
+          {
+            printf '## %s - %s\n\n' "$RELEASE_TAG" "$release_date"
+            printf '%s\n\n' "$RELEASE_CHANGELOG"
+            printf 'Docker image: `%s`\n\n' "$RELEASE_IMAGE"
+          } > .release_entry.md
+          {
+            head -n 1 CHANGELOG.md
+            printf '\n'
+            cat .release_entry.md
+            tail -n +2 CHANGELOG.md
+          } > CHANGELOG.new.md
+          mv CHANGELOG.new.md CHANGELOG.md
+
+      - name: Set Maven version
+        run: mvn -B versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+
+      - name: Update Helm chart version
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          yq eval ".appVersion = \"$VERSION\"" -i charts/smtp2x/Chart.yaml
+          yq eval ".version = \"$VERSION\"" -i charts/smtp2x/Chart.yaml
+          yq eval ".image.tag = \"$VERSION\"" -i charts/smtp2x/values.yaml
+
+      - name: Generate Helm values schema
+        run: |
+          helm plugin install https://github.com/karuppiah7890/helm-schema-gen.git
+          helm schema-gen charts/smtp2x/values.yaml > charts/smtp2x/values.schema.json
+
+      - name: Build release artifacts and SBOM
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          mvn -B -DskipTests package
+          cp target/smtp2x-*.jar release/
+          helm package charts/smtp2x --destination release
+          mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom \
+            -DoutputFormat=all \
+            -DoutputName="smtp2x-${{ inputs.version }}-sbom" \
+            -DoutputDirectory=release
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign release artifacts
+        run: |
+          set -euo pipefail
+          for artifact in release/*.jar release/*.tgz; do
+            cosign sign-blob --yes "$artifact" --bundle "${artifact}.cosign.bundle"
+          done
+
+      - name: Upload signed release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts
+          path: |
+            release/*.jar
+            release/*.tgz
+            release/*.cosign.bundle
+            release/*-sbom.json
+            release/*-sbom.xml
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.HELM_CHARTS_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Publish Helm chart to OCI registry
+        run: helm push release/smtp2x-${{ inputs.version }}.tgz oci://ghcr.io/wenisch-tech/helm-charts
+
+      - name: Download Docker attestation bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: docker-attestation-bundle
+          path: release
+
+      - name: Commit release metadata
+        id: release_commit
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pom.xml CHANGELOG.md charts/smtp2x/Chart.yaml charts/smtp2x/values.yaml charts/smtp2x/values.schema.json
+          git commit -m "chore(release): ${RELEASE_TAG} [skip ci]"
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create release tag after successful publication
+        id: release_tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ github.token }}
+          release_branches: main
+          custom_tag: ${{ inputs.version }}
+          commit_sha: ${{ steps.release_commit.outputs.sha }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.release_tag.outputs.new_tag }}
+          name: ${{ steps.release_tag.outputs.new_tag }}
+          files: |
+            release/docker-image-attestation.bundle.json
+            release/*.jar
+            release/*.tgz
+            release/*.cosign.bundle
+            release/*-sbom.json
+            release/*-sbom.xml
+          body: |
+            ${{ inputs.changelog }}
+
+            ## Docker image
+
+            ```text
+            ${{ inputs.image }}:${{ inputs.version }}
+            ${{ inputs.image }}@${{ inputs.digest }}
+            ```
+
+            ## Helm chart
+
+            ```bash
+            helm install smtp2x oci://ghcr.io/wenisch-tech/helm-charts/smtp2x --version ${{ inputs.version }}
+            ```
+
+            ## SBOM
+
+            CycloneDX JSON and XML SBOMs are attached as `smtp2x-${{ inputs.version }}-sbom.json` and `smtp2x-${{ inputs.version }}-sbom.xml`.
+
+            ## Signature and attestation verification
+
+            The image and release artifacts are signed keylessly with Sigstore Cosign. The container also has GitHub build provenance attached.
+
+            Verify the image signature:
+
+            ```bash
+            cosign verify ${{ inputs.image }}@${{ inputs.digest }} \
+              --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+            ```
+
+            Verify the build provenance:
+
+            ```bash
+            gh attestation verify oci://${{ inputs.image }}@${{ inputs.digest }} \
+              --repo wenisch-tech/SMTP2X
+            ```
+
+            Verify the Helm chart signature after downloading the chart and its `.cosign.bundle` from this release:
+
+            ```bash
+            cosign verify-blob smtp2x-${{ inputs.version }}.tgz \
+              --bundle smtp2x-${{ inputs.version }}.tgz.cosign.bundle \
+              --certificate-identity-regexp="https://github.com/wenisch-tech/SMTP2X" \
+              --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+            ```
