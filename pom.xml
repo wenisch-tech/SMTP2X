@@ -6,7 +6,7 @@
   <name>SMTP2X</name><description>Turn SMTP notifications into issues, Mattermost messages, and webhooks</description>
   <properties>
     <java.version>25</java.version>
-    <subethasmtp.version>7.1.7</subethasmtp.version>
+    <subethasmtp.version>7.2.2</subethasmtp.version>
     <springdoc.version>3.1.1</springdoc.version>
     <tomcat.version>11.0.25</tomcat.version>
     <jackson-bom.version>3.1.6</jackson-bom.version>
