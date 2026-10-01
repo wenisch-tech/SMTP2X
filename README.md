@@ -183,6 +183,8 @@ The SMTP server is configured through environment variables. Changes to port or 
 | `SMTP2X_SMTP_MAX_RECIPIENTS` | `100` | Maximum recipients per SMTP transaction. |
 | `SMTP2X_SMTP_MAX_CONNECTIONS` | `50` | Maximum concurrent SMTP connections. |
 
+With `SMTP2X_SMTP_AUTHENTICATION=DISABLED`, SMTP2X does not advertise the `AUTH` capability and accepts anonymous SMTP transactions. `OPTIONAL` advertises `AUTH` while still allowing anonymous delivery; only `REQUIRED` rejects unauthenticated senders.
+
 When STARTTLS is `OPTIONAL` or `REQUIRED`, provide both keystore variables. SMTP2X refuses startup for `REQUIRED` without usable certificate material. A client allowlist applies to anonymous and authenticated clients, so ensure the network address survives any TCP proxy or load balancer.
 
 To require SMTP authentication from the first start, supply a dedicated application account:

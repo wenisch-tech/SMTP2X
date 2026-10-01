@@ -58,13 +58,22 @@ public class SmtpServerService {
 
   public synchronized void start() {
     if (server != null && server.isRunning()) return;
+    server = createServer();
+    server.start();
+    log.info("SMTP2X SMTP listener started on port {} with authentication {}",
+        server.getPortAllocated(), properties.smtp().authentication());
+  }
+
+  SMTPServer createServer() {
+    Smtp2xProperties.Mode authentication = properties.smtp().authentication();
     SMTPServer.Builder builder = SMTPServer.port(properties.smtp().port())
         .maxConnections(properties.smtp().maxConnections())
         .maxRecipients(properties.smtp().maxRecipients())
         .maxMessageSize(properties.smtp().maxMessageBytes())
         .connectionTimeout(60, TimeUnit.SECONDS)
+        .requireAuth(authentication == Smtp2xProperties.Mode.REQUIRED)
         .messageHandlerFactory(TransactionHandler::new);
-    if (properties.smtp().authentication() != Smtp2xProperties.Mode.DISABLED) {
+    if (authentication != Smtp2xProperties.Mode.DISABLED) {
       builder.authenticationHandlerFactory(new EasyAuthenticationHandlerFactory(
           (username, password, context) -> {
             var credential = credentials.findByUsername(username)
@@ -72,9 +81,6 @@ public class SmtpServerService {
                     && passwords.matches(password, value.getPasswordHash()));
             if (credential.isEmpty()) throw new LoginFailedException();
           }));
-      if (properties.smtp().authentication() == Smtp2xProperties.Mode.REQUIRED) {
-        builder.requireAuth();
-      }
     }
     if (properties.smtp().starttls() != Smtp2xProperties.Mode.DISABLED) {
       SSLContext tls = tlsContext();
@@ -89,9 +95,7 @@ public class SmtpServerService {
         if (properties.smtp().starttls() == Smtp2xProperties.Mode.REQUIRED) builder.requireTLS();
       }
     }
-    server = builder.build();
-    server.start();
-    log.info("SMTP2X SMTP listener started on port {}", server.getPortAllocated());
+    return builder.build();
   }
 
   private SSLContext tlsContext() {
