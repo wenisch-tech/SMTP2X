@@ -11,7 +11,7 @@ helm install smtp2x ./charts/smtp2x \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now'
 ```
 
-SMTP2X uses a local H2 database and persistent volume by default. `replicaCount` must remain `1` because message attachments are stored on the pod's persistent volume. The SMTP Service is a `LoadBalancer`; the HTTP Service is a `ClusterIP` intended for ingress access.
+SMTP2X uses a local H2 database and persistent volume by default. `replicaCount` must remain `1` because message attachments are stored on the pod's persistent volume. The SMTP and HTTP Services default to `ClusterIP`; the HTTP Service is intended for ingress access.
 
 ## Ingress
 
