@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.1 - 2026-10-01
+
+### [0.3.1](https://github.com/wenisch-tech/SMTP2X/compare/v0.3.0...v0.3.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* fixed proble authmode not properly set for SMTP ([b84ee55](https://github.com/wenisch-tech/SMTP2X/commit/b84ee55d97e04221999e746a7ea8a2776ac76934))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.3.1`
+
+
 ## v0.3.0 - 2026-10-01
 
 ## [0.3.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.3...v0.3.0) (2026-10-01)
