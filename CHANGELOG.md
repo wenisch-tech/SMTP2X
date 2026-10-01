@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.3 - 2026-10-01
+
+### [0.2.3](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.2...v0.2.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* improvements livenessprobe ([f4a196c](https://github.com/wenisch-tech/SMTP2X/commit/f4a196c785c1a674e6bf3fd481bd91af9b1ad851))
+* updated permissions for volume ([db978cd](https://github.com/wenisch-tech/SMTP2X/commit/db978cdf1711133032ebb5ef32c8e41b47a00e70))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.2.3`
+
+
 ## v0.2.2 - 2026-10-01
 
 ### [0.2.2](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.1...v0.2.2) (2026-10-01)

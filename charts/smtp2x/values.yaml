@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/wenisch-tech/smtp2x
-  tag: "0.2.2"
+  tag: "0.2.3"
   pullPolicy: IfNotPresent
 replicaCount: 1
 # The embedded H2 database and the persistent data volume have a single writer.

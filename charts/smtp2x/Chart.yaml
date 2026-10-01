@@ -2,8 +2,8 @@ apiVersion: v2
 name: smtp2x
 description: SMTP notifications to GitLab issues and webhooks
 type: application
-version: 0.2.2
-appVersion: "0.2.2"
+version: 0.2.3
+appVersion: "0.2.3"
 home: https://github.com/wenisch-tech/SMTP2X
 sources: ['https://github.com/wenisch-tech/SMTP2X']
 annotations:
