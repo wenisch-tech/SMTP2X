@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.27
-# Chainguard JRE is the runtime image. The small scaffold stage only creates a
-# writable data directory for the non-root runtime user.
+# Chainguard JRE is the runtime image. The small scaffold stage creates the
+# writable data directory used by the application.
 FROM cgr.dev/chainguard/wolfi-base:latest AS scaffold
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chmod 0777 /app/data
 FROM cgr.dev/chainguard/jre:latest
 WORKDIR /app
 ARG BUILD_DATE=unknown
@@ -15,9 +15,8 @@ LABEL org.opencontainers.image.title="SMTP2X" \
       org.opencontainers.image.version="${BUILD_VERSION}" \
       org.opencontainers.image.revision="${BUILD_REVISION}" \
       org.opencontainers.image.created="${BUILD_DATE}"
-COPY --from=scaffold --chown=65532:65532 /app/data /app/data
-COPY --chown=65532:65532 target/smtp2x-*.jar /app/app.jar
-USER 65532:65532
+COPY --from=scaffold /app/data /app/data
+COPY target/smtp2x-*.jar /app/app.jar
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/urandom"
 VOLUME ["/app/data"]
 EXPOSE 8080 2525

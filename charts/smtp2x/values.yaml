@@ -7,12 +7,6 @@ replicaCount: 1
 # Recreate prevents an updated pod from starting against the same data directory.
 updateStrategy:
   type: Recreate
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 65532
-  runAsGroup: 65532
-  fsGroup: 65532
-  fsGroupChangePolicy: OnRootMismatch
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
