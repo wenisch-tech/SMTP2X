@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.4.0 - 2026-10-01
+
+## [0.4.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.3.1...v0.4.0) (2026-10-01)
+
+
+### Features
+
+* allow editing of actions after creation ([e9b2f88](https://github.com/wenisch-tech/SMTP2X/commit/e9b2f88dc5f593c3b3017917dd41bca3e05dfb5a))
+
+
+### Bug Fixes
+
+* fixed mapping of OIDC Roles so users with assigned Roles are not stuck in pending ([829ff40](https://github.com/wenisch-tech/SMTP2X/commit/829ff40f4a780b2651c8fb5bfad554901b02e480))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.4.0`
+
+
 ## v0.3.1 - 2026-10-01
 
 ### [0.3.1](https://github.com/wenisch-tech/SMTP2X/compare/v0.3.0...v0.3.1) (2026-10-01)
