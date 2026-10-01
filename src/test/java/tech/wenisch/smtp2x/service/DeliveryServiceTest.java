@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +57,7 @@ class DeliveryServiceTest {
     verify(jobs).save(job);
     verify(metrics).deliveryAttempt(eq(ActionType.GITLAB_ISSUE),
         eq(ApplicationMetrics.Outcome.SUCCEEDED), any());
+    verifyNoMoreInteractions(metrics);
   }
 
   @Test
@@ -98,5 +100,6 @@ class DeliveryServiceTest {
         eq(ApplicationMetrics.Outcome.RETRY), any());
     verify(metrics).deliveryAttempt(eq(ActionType.WEBHOOK),
         eq(ApplicationMetrics.Outcome.FAILED), any());
+    verifyNoMoreInteractions(metrics);
   }
 }

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,10 +64,11 @@ class ExternalCleanupServiceTest {
     assertThat(job.getConfigurationSnapshot()).isEqualTo("{}");
     verify(metrics).cleanupAttempt(ActionType.GITLAB_ISSUE,
         ApplicationMetrics.Outcome.SUCCEEDED);
+    verifyNoMoreInteractions(metrics);
   }
 
   @Test
-  void retriesTemporaryProviderFailuresWithoutDiscardingCredentials() throws Exception {
+  void cleanupMetricsDistinguishRetryAndTerminalFailureWithoutDoubleCounting() throws Exception {
     var repository = mock(ExternalCleanupJobRepository.class);
     var handler = mock(CleanupActionHandler.class);
     var audit = mock(AuditService.class);
@@ -74,21 +76,32 @@ class ExternalCleanupServiceTest {
     var json = new ObjectMapper();
     when(handler.type()).thenReturn(ActionType.FORGEJO_ISSUE);
     doThrow(new DeliveryException("Forgejo cleanup returned 503", true))
+        .doThrow(new DeliveryException("Forgejo cleanup rejected the request", false))
         .when(handler).cleanup(any(), eq("23"));
     String snapshot = "{\"configuration\":{\"accessToken\":\"enc:test-token\"}}";
     var job = new ExternalCleanupJob(UUID.randomUUID(), ActionType.FORGEJO_ISSUE,
         snapshot, "23", Instant.now());
+    var failedJob = new ExternalCleanupJob(UUID.randomUUID(), ActionType.FORGEJO_ISSUE,
+        snapshot, "23", Instant.now());
     job.claim();
+    failedJob.claim();
     when(repository.findById(job.getId())).thenReturn(Optional.of(job));
+    when(repository.findById(failedJob.getId())).thenReturn(Optional.of(failedJob));
     var service = new ExternalCleanupService(repository, json, List.of(handler), audit, metrics);
 
     service.cleanup(job.getId());
+    service.cleanup(failedJob.getId());
 
     assertThat(job.getStatus()).isEqualTo(CleanupStatus.PENDING);
     assertThat(job.getAttempts()).isEqualTo(1);
     assertThat(job.getLastError()).contains("503");
     assertThat(job.getConfigurationSnapshot()).isEqualTo(snapshot);
+    assertThat(failedJob.getStatus()).isEqualTo(CleanupStatus.FAILED);
+    assertThat(failedJob.getAttempts()).isEqualTo(1);
     verify(metrics).cleanupAttempt(ActionType.FORGEJO_ISSUE,
         ApplicationMetrics.Outcome.RETRY);
+    verify(metrics).cleanupAttempt(ActionType.FORGEJO_ISSUE,
+        ApplicationMetrics.Outcome.FAILED);
+    verifyNoMoreInteractions(metrics);
   }
 }
