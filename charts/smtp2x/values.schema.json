@@ -15,6 +15,16 @@
       }
     },
     "replicaCount": {"type": "integer", "minimum": 1, "maximum": 1},
+    "updateStrategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "enum": ["Recreate", "RollingUpdate"]}
+      }
+    },
+    "podSecurityContext": {"$ref": "#/definitions/podSecurityContext"},
+    "securityContext": {"$ref": "#/definitions/securityContext"},
     "service": {
       "type": "object",
       "additionalProperties": false,
@@ -96,6 +106,9 @@
         "limits": {"$ref": "#/definitions/resources"}
       }
     },
+    "startupProbe": {"$ref": "#/definitions/probe"},
+    "livenessProbe": {"$ref": "#/definitions/probe"},
+    "readinessProbe": {"$ref": "#/definitions/probe"},
     "env": {
       "type": "object",
       "description": "Non-sensitive environment variables passed to the container.",
@@ -113,7 +126,7 @@
       "additionalProperties": {"$ref": "#/definitions/environmentValue"}
     }
   },
-  "required": ["image", "replicaCount", "service", "ingress", "persistence", "resources", "env", "secrets"],
+  "required": ["image", "replicaCount", "updateStrategy", "podSecurityContext", "securityContext", "service", "ingress", "persistence", "resources", "startupProbe", "livenessProbe", "readinessProbe", "env", "secrets"],
   "definitions": {
     "service": {
       "type": "object",
@@ -130,6 +143,55 @@
       "properties": {
         "cpu": {"type": ["string", "number"]},
         "memory": {"type": "string", "minLength": 1}
+      }
+    },
+    "httpGet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "port"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^/"},
+        "port": {"type": ["string", "integer"]}
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "httpGet", "periodSeconds", "timeoutSeconds", "failureThreshold"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "httpGet": {"$ref": "#/definitions/httpGet"},
+        "initialDelaySeconds": {"type": "integer", "minimum": 0},
+        "periodSeconds": {"type": "integer", "minimum": 1},
+        "timeoutSeconds": {"type": "integer", "minimum": 1},
+        "failureThreshold": {"type": "integer", "minimum": 1}
+      }
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runAsNonRoot", "runAsUser", "runAsGroup", "fsGroup", "fsGroupChangePolicy"],
+      "properties": {
+        "runAsNonRoot": {"type": "boolean"},
+        "runAsUser": {"type": "integer", "minimum": 1},
+        "runAsGroup": {"type": "integer", "minimum": 1},
+        "fsGroup": {"type": "integer", "minimum": 1},
+        "fsGroupChangePolicy": {"type": "string", "enum": ["Always", "OnRootMismatch"]}
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowPrivilegeEscalation", "capabilities", "readOnlyRootFilesystem"],
+      "properties": {
+        "allowPrivilegeEscalation": {"type": "boolean"},
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["drop"],
+          "properties": {"drop": {"type": "array", "items": {"type": "string"}}}
+        },
+        "readOnlyRootFilesystem": {"type": "boolean"}
       }
     },
     "environmentValue": {

@@ -11,7 +11,9 @@ helm install smtp2x ./charts/smtp2x \
   --set-string secrets.SMTP2X_ADMIN_PASSWORD='change-me-now'
 ```
 
-SMTP2X uses a local H2 database and persistent volume by default. `replicaCount` must remain `1` because message attachments are stored on the pod's persistent volume. The SMTP and HTTP Services default to `ClusterIP`; the HTTP Service is intended for ingress access.
+SMTP2X uses a local H2 database and persistent volume by default. `replicaCount` must remain `1` because message attachments are stored on the pod's persistent volume. The chart uses a `Recreate` update strategy so an updated pod never starts against the same H2 data directory as the old one. It runs as UID/GID `65532` and sets the volume `fsGroup` to `65532`, allowing that process to create and update files on the mounted volume. The SMTP and HTTP Services default to `ClusterIP`; the HTTP Service is intended for ingress access.
+
+The application exposes `/actuator/health`, `/actuator/health/liveness`, and `/actuator/health/readiness`. The startup probe allows 150 seconds for the JVM, Flyway migration, and SMTP listener to start before Kubernetes evaluates liveness. A failed readiness probe only removes the pod from Services; a failed startup or liveness probe restarts it.
 
 ## Ingress
 
@@ -99,9 +101,12 @@ secrets:
 | `image.tag` | Chart app version | Container tag; an empty value uses `appVersion` |
 | `image.pullPolicy` | `IfNotPresent` | Kubernetes image pull policy |
 | `replicaCount` | `1` | Deployment replicas |
+| `updateStrategy.type` | `Recreate` | Deployment update strategy for the single-writer H2 volume |
+| `podSecurityContext` | See `values.yaml` | UID, GID, and mounted-volume ownership settings |
+| `securityContext` | See `values.yaml` | Container privilege settings |
 | `service.http.type` | `ClusterIP` | HTTP Service type |
 | `service.http.port` | `8080` | HTTP Service port |
-| `service.smtp.type` | `LoadBalancer` | SMTP Service type |
+| `service.smtp.type` | `ClusterIP` | SMTP Service type |
 | `service.smtp.port` | `2525` | SMTP Service port |
 | `ingress.enabled` | `false` | Create an HTTP Ingress |
 | `ingress.className` | empty | Ingress class name |
@@ -112,6 +117,9 @@ secrets:
 | `persistence.storageClassName` | empty | Storage class, or the cluster default |
 | `persistence.size` | `10Gi` | Requested storage size |
 | `resources` | See `values.yaml` | Container requests and limits |
+| `startupProbe` | See `values.yaml` | Startup health probe; delays liveness until startup succeeds |
+| `livenessProbe` | See `values.yaml` | Liveness probe; failures restart the container |
+| `readinessProbe` | See `values.yaml` | Readiness probe; failures remove the pod from Services |
 | `env.OIDC_IGNORE_TLS` | `"false"` | Temporarily disable OIDC certificate and hostname verification |
 | `env` | See `values.yaml` | Plain environment variables |
 | `secrets` | `{}` | Secret-backed environment variables |

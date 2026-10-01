@@ -3,6 +3,22 @@ image:
   tag: "0.2.2"
   pullPolicy: IfNotPresent
 replicaCount: 1
+# The embedded H2 database and the persistent data volume have a single writer.
+# Recreate prevents an updated pod from starting against the same data directory.
+updateStrategy:
+  type: Recreate
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
 service:
   http:
     type: ClusterIP
@@ -31,6 +47,34 @@ resources:
   limits:
     cpu: "2"
     memory: 2Gi
+# Keep liveness disabled until the JVM, Flyway migration, and SMTP listener have
+# finished starting. Set any probe's enabled flag to false to omit it.
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /actuator/health
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 30
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 3
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /actuator/health/readiness
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 5
 # Environment variables are passed directly to the SMTP2X container.
 # To enable OIDC, configure these values (prefer secrets for the client secret):
 # env:
