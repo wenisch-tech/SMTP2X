@@ -79,6 +79,7 @@ externalSecretName: ""
 # To enable OIDC, configure these values (prefer secrets for the client secret):
 # env:
 #   SMTP2X_SECURITY_OIDC_ENABLED: "true"
+#   SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED: "true"
 #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: smtp2x
 #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
 #   SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.example.com/realms/smtp2x

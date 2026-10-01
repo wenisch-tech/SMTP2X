@@ -74,6 +74,7 @@ The corresponding command-line form is:
 helm upgrade --install smtp2x ./charts/smtp2x \
   --namespace smtp2x --create-namespace \
   --set-string env.SMTP2X_SECURITY_OIDC_ENABLED=true \
+  --set-string env.SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED=true \
   --set-string env.SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=smtp2x \
   --set-string env.SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE=openid,profile,email \
   --set-string env.SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI=https://auth.example.com/realms/smtp2x \
@@ -88,7 +89,7 @@ https://smtp2x.example.com/login/oauth2/code/keycloak
 
 The ingress must preserve `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-Port`. SMTP2X already enables Spring's forwarded-header support so it generates the public HTTPS callback URL.
 
-New OIDC users start with the `PENDING` role. When role mapping is enabled, `SMTP2X_Admin` maps to Admin and `SMTP2X_Viewer` maps to Viewer.
+New OIDC users without a matching role start with the `PENDING` role. When role mapping is enabled, `SMTP2X_Admin` and `ROLE_SMTP2X_ADMIN` map to Admin, while `SMTP2X_Viewer` and `ROLE_SMTP2X_VIEWER` map to Viewer. Matching is case-insensitive.
 
 For temporary troubleshooting with a private or self-signed issuer certificate, set `env.OIDC_IGNORE_TLS` to `"true"`. This disables certificate and hostname verification for OIDC discovery, token exchange, and JWK retrieval. Install the issuer CA in the container trust store for production deployments instead.
 

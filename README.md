@@ -24,7 +24,7 @@ The GitLab integration also supports recipient-based assignment: actions can ass
 - **Routing rules** — global and recipient-specific rules can filter on envelope sender and subject. Every matching rule contributes actions; the same action runs once per message.
 - **Durable delivery** — SMTP success is returned only after the message and delivery jobs are stored. Failed remote calls retry after 1, 5, 15, and 60 minutes.
 - **Message history and audit trail** — inspect received messages, attachments, routing results, delivery attempts, remote issue links, and configuration changes.
-- **Built-in and OIDC login** — bootstrap a local administrator or use an OIDC provider such as Keycloak. OIDC users start as Pending until an administrator grants Viewer or Admin access.
+- **Built-in and OIDC login** — bootstrap a local administrator or use an OIDC provider such as Keycloak. Mapped OIDC Viewer and Admin roles receive access immediately; unmapped users remain Pending.
 - **SMTP controls** — independently configure SMTP authentication, STARTTLS, client CIDR allowlists, message limits, recipient limits, and connection limits.
 - **Operations ready** — file-backed H2 for compact installations, PostgreSQL support, Prometheus metrics, Docker, Compose, Helm, health probes, and a GitHub Actions build pipeline.
 
@@ -200,12 +200,13 @@ The username and password must be supplied together. SMTP2X creates this account
 
 ## Authentication and OIDC
 
-Local login always remains available for the bootstrap administrator. New OIDC users are provisioned as `PENDING`; they can see only the access-pending page until an administrator changes their role to `VIEWER` or `ADMIN`.
+Local login always remains available for the bootstrap administrator. New OIDC users are provisioned as `PENDING` unless role mapping grants `VIEWER` or `ADMIN`; pending users can see only the access-pending page until an administrator changes their role.
 
 Set `SMTP2X_SECURITY_OIDC_ENABLED=true` and configure Spring Security’s standard OIDC client registration. The complete Keycloak registration can be supplied through environment variables:
 
 ```bash
 SMTP2X_SECURITY_OIDC_ENABLED=true
+SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED=true
 OIDC_IGNORE_TLS=false
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=smtp2x
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET=change-me
@@ -223,9 +224,11 @@ SMTP2X identifies a user from the verified ID token’s `email` claim, falling b
 
 | OIDC role | SMTP2X access |
 |---|---|
-| `SMTP2X_Admin` | Admin |
-| `SMTP2X_Viewer` | Viewer |
+| `SMTP2X_Admin` or `ROLE_SMTP2X_ADMIN` | Admin |
+| `SMTP2X_Viewer` or `ROLE_SMTP2X_VIEWER` | Viewer |
 | Neither | Pending |
+
+Role names are matched case-insensitively. SMTP2X reads collection-valued and single-string roles from `roles`, `realm_access.roles`, and each `resource_access.*.roles` claim. If both mapped roles are present, Admin takes precedence.
 
 For temporary troubleshooting with a private or self-signed issuer certificate, set `OIDC_IGNORE_TLS=true`. This disables certificate and hostname verification for OIDC discovery, token exchange, and JWK retrieval. Install the issuer CA in the container trust store for production deployments instead.
 
