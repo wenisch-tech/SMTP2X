@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.3.0 - 2026-10-01
+
+## [0.3.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.3...v0.3.0) (2026-10-01)
+
+
+### Features
+
+* Added metrics ([942496c](https://github.com/wenisch-tech/SMTP2X/commit/942496cf47a6af45bacd0f42f4052508e90dc460))
+* support for externalsecret ([fc0aeb1](https://github.com/wenisch-tech/SMTP2X/commit/fc0aeb15c866959dc02e4ea69803b8d27c2160b6))
+
+
+### Bug Fixes
+
+* fixed metrics for cleanup ([97d1410](https://github.com/wenisch-tech/SMTP2X/commit/97d1410986a921f94d28154381b9a516ff5b3cd9))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.3.0`
+
+
 ## v0.2.3 - 2026-10-01
 
 ### [0.2.3](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.2...v0.2.3) (2026-10-01)
