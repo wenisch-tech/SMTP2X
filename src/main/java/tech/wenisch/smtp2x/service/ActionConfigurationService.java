@@ -34,20 +34,20 @@ public class ActionConfigurationService {
       JsonNode config, String actor) {
     if (name == null || name.isBlank() || name.trim().length() > 120)
       throw new IllegalArgumentException("Enter an action name of at most 120 characters");
-    validate(type, config);
-    ObjectNode secured = (ObjectNode) config.deepCopy();
-    SECRET_FIELDS.forEach(field -> encrypt(secured, field));
+    ActionConfiguration action = id == null
+        ? null
+        : actions.findById(id).orElseThrow();
+    if (action != null && action.getType() != type)
+      throw new IllegalArgumentException("An action type cannot be changed");
+
+    ObjectNode secured = secureConfiguration(action, type, config);
     String value;
     try {
       value = json.writeValueAsString(secured);
     } catch (Exception e) {
       throw new IllegalArgumentException("Invalid action configuration", e);
     }
-    ActionConfiguration action = id == null
-        ? new ActionConfiguration(name, type, value)
-        : actions.findById(id).orElseThrow();
-    if (id != null && action.getType() != type)
-      throw new IllegalArgumentException("An action type cannot be changed");
+    if (action == null) action = new ActionConfiguration(name, type, value);
     action.update(name.trim(), enabled, value);
     action = actions.save(action);
     audit.record(actor, id == null ? "ACTION_CREATED" : "ACTION_UPDATED", "action",
@@ -56,26 +56,55 @@ public class ActionConfigurationService {
   }
 
   public JsonNode publicConfiguration(ActionConfiguration action) {
-    try {
-      ObjectNode node = (ObjectNode) json.readTree(action.getConfigurationJson());
-      SECRET_FIELDS.forEach(field -> redact(node, field));
-      return node;
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
-    }
+    ObjectNode node = parse(action.getConfigurationJson());
+    SECRET_FIELDS.forEach(field -> redact(node, field));
+    return node;
   }
 
-  private void encrypt(ObjectNode node, String field) {
-    if (node.hasNonNull(field)) {
-      String value = node.path(field).asText();
-      if (!value.isBlank() && !value.startsWith("enc:")) node.put(field, cipher.encrypt(value));
+  private ObjectNode secureConfiguration(ActionConfiguration action, ActionType type,
+      JsonNode config) {
+    if (config == null || !config.isObject())
+      throw new IllegalArgumentException("Action configuration must be an object");
+    ObjectNode secured = (ObjectNode) config.deepCopy();
+    ObjectNode validation = secured.deepCopy();
+    ObjectNode existing = action == null ? null : parse(action.getConfigurationJson());
+    SECRET_FIELDS.forEach(field -> secure(field, secured, validation, existing));
+    validate(type, validation);
+    return secured;
+  }
+
+  private void secure(String field, ObjectNode secured, ObjectNode validation,
+      ObjectNode existing) {
+    secured.remove(field + "Configured");
+    validation.remove(field + "Configured");
+    String submitted = secured.path(field).asText();
+    if (!submitted.isBlank()) {
+      secured.put(field, cipher.encrypt(submitted));
+      return;
+    }
+    String current = existing == null ? "" : existing.path(field).asText();
+    if (!current.isBlank()) {
+      secured.set(field, existing.get(field));
+      validation.put(field, cipher.decrypt(current));
+    } else {
+      secured.remove(field);
+      validation.remove(field);
     }
   }
 
   private void redact(ObjectNode node, String field) {
     if (node.has(field)) {
+      boolean configured = !node.path(field).asText().isBlank();
       node.put(field, "");
-      node.put(field + "Configured", true);
+      node.put(field + "Configured", configured);
+    }
+  }
+
+  private ObjectNode parse(String value) {
+    try {
+      return (ObjectNode) json.readTree(value);
+    } catch (Exception e) {
+      throw new IllegalStateException("Invalid stored action configuration", e);
     }
   }
 

@@ -804,6 +804,11 @@ input[type="checkbox"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
+.action-card-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .action-destination {
   font-size: 12px;
   color: #8090a6;

@@ -120,11 +120,22 @@ async function busy(button, work) {
 }
 
 // The same action dialog is used on the Actions page and within a rule draft.
-function actionDialog(onCreated) {
+function actionDialog(onSaved) {
   const dialog = $("#action-dialog");
   if (!dialog) return;
   const form = $("#action-form"),
     field = (name) => form.elements.namedItem(name);
+  let editing = null;
+  const secretFields = [
+    ["accessToken", "accessTokenConfigured", true],
+    ["githubAccessToken", "accessTokenConfigured", true],
+    ["forgejoAccessToken", "accessTokenConfigured", true],
+    ["mattermostWebhookUrl", "webhookUrlConfigured", true],
+    ["bearerToken", "bearerTokenConfigured", false],
+  ];
+  secretFields.forEach(([name]) => {
+    field(name).dataset.defaultPlaceholder = field(name).placeholder;
+  });
   const sync = () => {
     const type = field("type").value;
     $$("[data-action-fields]", form).forEach((fields) => {
@@ -134,6 +145,71 @@ function actionDialog(onCreated) {
     });
     $("#preview-result").textContent = "";
     notice("", false, "#action-error");
+  };
+  const set = (name, value) => {
+    if (value !== undefined && value !== null) field(name).value = value;
+  };
+  const setLines = (name, values) => {
+    if (Array.isArray(values)) field(name).value = values.join("\n");
+  };
+  const configureSecrets = (configuration = {}) => {
+    secretFields.forEach(([name, configuredProperty, required]) => {
+      const input = field(name);
+      const configured = Boolean(editing && configuration[configuredProperty]);
+      input.value = "";
+      input.required = required && !configured;
+      input.placeholder = configured
+        ? "Configured — leave blank to keep it"
+        : input.dataset.defaultPlaceholder;
+    });
+  };
+  const populate = (action) => {
+    const c = action.configuration || {};
+    field("name").value = action.name;
+    field("type").value = action.type;
+    field("enabled").checked = action.enabled;
+    field("ignoreTlsErrors").checked = Boolean(c.ignoreTlsErrors);
+    switch (action.type) {
+      case "GITLAB_ISSUE":
+        set("baseUrl", c.baseUrl);
+        set("project", c.project);
+        field("useRecipient").checked = Boolean(c.useRecipient);
+        setLines("defaults", c.defaultAssigneeEmails);
+        if (c.assigneeEmailMappings !== undefined)
+          field("mappings").value = JSON.stringify(
+            c.assigneeEmailMappings,
+            null,
+            2,
+          );
+        set("gitlabAutoDeleteAfter", c.autoDeleteAfter);
+        break;
+      case "GITHUB_ISSUE":
+        set("githubBaseUrl", c.baseUrl);
+        set("githubRepository", c.repository);
+        set("githubTitleTemplate", c.titleTemplate);
+        set("githubBodyTemplate", c.bodyTemplate);
+        setLines("githubLabels", c.labels);
+        setLines("githubAssignees", c.assignees);
+        break;
+      case "FORGEJO_ISSUE":
+        set("forgejoBaseUrl", c.baseUrl);
+        set("forgejoRepository", c.repository);
+        set("forgejoTitleTemplate", c.titleTemplate);
+        set("forgejoBodyTemplate", c.bodyTemplate);
+        setLines("forgejoLabelIds", c.labelIds?.map(String));
+        setLines("forgejoAssignees", c.assignees);
+        set("forgejoAutoDeleteAfter", c.autoDeleteAfter);
+        break;
+      case "MATTERMOST_MESSAGE":
+        set("mattermostTextTemplate", c.textTemplate);
+        set("mattermostChannel", c.channel);
+        set("mattermostUsername", c.username);
+        set("mattermostIconUrl", c.iconUrl);
+        break;
+      default:
+        set("url", c.url);
+    }
+    configureSecrets(c);
   };
   const lines = (name) =>
     field(name)
@@ -209,6 +285,10 @@ function actionDialog(onCreated) {
   $("#preview-assignees").onclick = () =>
     busy($("#preview-assignees"), async () => {
       try {
+        if (editing && !field("accessToken").value)
+          throw new Error(
+            "Enter a new GitLab access token to validate assignees. Leaving it blank keeps the configured token when saving.",
+          );
         const result = await api("/actions/gitlab/assignees/preview", {
           method: "POST",
           body: JSON.stringify({
@@ -229,25 +309,40 @@ function actionDialog(onCreated) {
     busy($('button[type="submit"],button:not([type])', form), async () => {
       try {
         notice("", false, "#action-error");
-        const action = await api("/actions", {
-          method: "POST",
-          body: JSON.stringify({
-            name: field("name").value,
-            type: field("type").value,
-            enabled: true,
-            configuration: configuration(),
-          }),
-        });
+        const action = await api(
+          "/actions" + (editing ? "/" + editing.id : ""),
+          {
+            method: editing ? "PUT" : "POST",
+            body: JSON.stringify({
+              name: field("name").value,
+              type: field("type").value,
+              enabled: field("enabled").checked,
+              configuration: configuration(),
+            }),
+          },
+        );
         dialog.close();
-        await onCreated(action);
+        await onSaved(action, Boolean(editing));
       } catch (e) {
         notice(e.message, true, dialog.open ? "#action-error" : "#page-notice");
       }
     });
   };
-  return () => {
+  return (action = null) => {
+    editing = action;
+    field("type").disabled = false;
     form.reset();
+    if (action) populate(action);
+    else configureSecrets();
     sync();
+    field("type").disabled = Boolean(action);
+    $("#action-dialog-eyebrow").textContent = action
+      ? "UPDATE A DESTINATION"
+      : "CONNECT A DESTINATION";
+    $("#action-dialog-title").textContent = action
+      ? "Edit action"
+      : "Create action";
+    $("#save-action").textContent = action ? "Save action" : "Create action";
     dialog.showModal();
     field("name").focus();
   };
@@ -388,7 +483,7 @@ async function rulesPage() {
   $("#new-rule").onclick = () => openRule();
   $("#close-rule").onclick = closeRule;
   $("#cancel-rule").onclick = closeRule;
-  $("#inline-action").onclick = openAction;
+  $("#inline-action").onclick = () => openAction();
   $("#action-search").oninput = renderOptions;
   field("globalRule").onchange = syncScope;
   form.onsubmit = (e) => {
@@ -431,7 +526,7 @@ async function actionsPage() {
       actions
         .map(
           (a) =>
-            `<article class="card" id="action-${a.id}"><div class="section-heading"><div class="node-header"><span class="node-icon ${a.type.toLowerCase()}">${icon(a.type)}</span><h2>${escape(a.name)}</h2></div>${state(a.enabled)}</div><span class="badge blue">${typeName(a.type)}</span><p class="action-destination">${escape(destination(a))}</p><div class="linked-rules"><span class="muted small">USED BY ROUTING RULES</span><div>${
+            `<article class="card" id="action-${a.id}"><div class="section-heading"><div class="node-header"><span class="node-icon ${a.type.toLowerCase()}">${icon(a.type)}</span><h2>${escape(a.name)}</h2></div><div class="action-card-controls">${state(a.enabled)}${admin ? `<button class="text-button" data-edit-action="${a.id}">Edit action ↗</button>` : ""}</div></div><span class="badge blue">${typeName(a.type)}</span><p class="action-destination">${escape(destination(a))}</p><div class="linked-rules"><span class="muted small">USED BY ROUTING RULES</span><div>${
               rules
                 .filter((r) => r.actionIds.includes(a.id))
                 .map(
@@ -447,14 +542,30 @@ async function actionsPage() {
         "Connect your first destination",
         "Create an issue, Mattermost, or webhook action, then attach it to a rule.",
       );
+    $$('[data-edit-action]').forEach(
+      (button) =>
+        (button.onclick = () =>
+          openAction(
+            actions.find(
+              (action) => action.id === button.dataset.editAction,
+            ),
+          )),
+    );
   }
+  const openAction = admin
+    ? actionDialog(async (saved, wasEditing) => {
+        actions = actions.filter((action) => action.id !== saved.id);
+        actions.push(saved);
+        render();
+        notice(
+          wasEditing
+            ? "Action saved. Existing credentials were kept unless you replaced them."
+            : "Action created. You can now select it in a routing rule.",
+        );
+      })
+    : null;
   render();
-  if (admin)
-    $("#new-action").onclick = actionDialog(async (a) => {
-      actions.push(a);
-      render();
-      notice("Action created. You can now select it in a routing rule.");
-    });
+  if (admin) $("#new-action").onclick = () => openAction();
   if (location.hash)
     document.getElementById(location.hash.slice(1))?.scrollIntoView();
 }

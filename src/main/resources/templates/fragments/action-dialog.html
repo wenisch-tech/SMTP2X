@@ -9,7 +9,9 @@
     >
       <div class="section-heading">
         <div>
-          <div class="eyebrow">CONNECT A DESTINATION</div>
+          <div class="eyebrow" id="action-dialog-eyebrow">
+            CONNECT A DESTINATION
+          </div>
           <h2 id="action-dialog-title">Create action</h2>
         </div>
         <button
@@ -40,6 +42,10 @@
             <option value="MATTERMOST_MESSAGE">Mattermost message</option>
             <option value="WEBHOOK">Webhook</option>
           </select></label
+        >
+        <label class="check"
+          ><input type="checkbox" name="enabled" checked /> Action
+          enabled</label
         >
         <div class="form-callout">
           <label class="check"
@@ -238,7 +244,7 @@ _From: {{from}}_</textarea></label
         <div class="form-footer">
           <button type="button" class="btn secondary" id="cancel-action">
             Cancel</button
-          ><button class="btn">Create action</button>
+          ><button class="btn" id="save-action">Create action</button>
         </div>
       </form>
     </dialog>

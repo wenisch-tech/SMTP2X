@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import tech.wenisch.smtp2x.domain.*;
 import tech.wenisch.smtp2x.repository.*;
+import tech.wenisch.smtp2x.service.SecretCipher;
 
 @SpringBootTest(properties={"spring.datasource.url=jdbc:h2:mem:workspace;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "smtp2x.smtp.enabled=false", "smtp2x.data-directory=target/workspace-test-data", "smtp2x.delivery.poll-ms=3600000", "smtp2x.cleanup.poll-ms=3600000"})
 class WorkspaceIntegrationTest {
@@ -28,6 +29,7 @@ class WorkspaceIntegrationTest {
   @Autowired ExternalCleanupJobRepository cleanups;
   @Autowired AppUserRepository users;
   @Autowired ObjectMapper json;
+  @Autowired SecretCipher secrets;
   MockMvc mvc;
   final String admin="admin@smtp2x.local", viewer="viewer@example.com";
 
@@ -94,6 +96,52 @@ class WorkspaceIntegrationTest {
       .andExpect(jsonPath("$.actions[0].destination").value("Mattermost incoming webhook"))
       .andReturn().getResponse().getContentAsString();
     assertThat(dashboard).doesNotContain("super-secret-token","webhookUrl","enc:");
+  }
+  @Test void actionUpdatesPreserveRedactedSecretsUntilTheyAreReplaced() throws Exception {
+    var configuration=json.createObjectNode();
+    configuration.put("baseUrl","https://api.github.com");
+    configuration.put("repository","acme/alerts");
+    configuration.put("accessToken","original-secret");
+    configuration.put("titleTemplate","{{subject}}");
+    configuration.put("bodyTemplate","{{body}}");
+    var request=json.createObjectNode();
+    request.put("name","GitHub alerts");request.put("type","GITHUB_ISSUE");request.put("enabled",true);
+    request.set("configuration",configuration);
+    var created=mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isCreated()).andReturn();
+    UUID id=UUID.fromString(json.readTree(created.getResponse().getContentAsString()).path("id").asText());
+    String originalCiphertext=json.readTree(actions.findById(id).orElseThrow()
+      .getConfigurationJson()).path("accessToken").asText();
+
+    configuration.put("repository","acme/updated-alerts");
+    configuration.put("accessToken","");
+    configuration.put("accessTokenConfigured",true);
+    request.put("name","Updated GitHub alerts");request.put("enabled",false);
+    String response=mvc.perform(put("/api/v1/actions/"+id).with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.name").value("Updated GitHub alerts"))
+      .andExpect(jsonPath("$.enabled").value(false))
+      .andExpect(jsonPath("$.configuration.repository").value("acme/updated-alerts"))
+      .andExpect(jsonPath("$.configuration.accessToken").value(""))
+      .andExpect(jsonPath("$.configuration.accessTokenConfigured").value(true))
+      .andReturn().getResponse().getContentAsString();
+    var preserved=json.readTree(actions.findById(id).orElseThrow().getConfigurationJson());
+    assertThat(preserved.path("accessToken").asText()).isEqualTo(originalCiphertext);
+    assertThat(preserved.has("accessTokenConfigured")).isFalse();
+    assertThat(response).doesNotContain("original-secret",originalCiphertext,"enc:");
+
+    configuration.put("accessToken","replacement-secret");
+    configuration.remove("accessTokenConfigured");
+    mvc.perform(put("/api/v1/actions/"+id).with(user(admin).roles("ADMIN")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(request)))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.configuration.accessToken").value(""));
+    String replacement=json.readTree(actions.findById(id).orElseThrow()
+      .getConfigurationJson()).path("accessToken").asText();
+    assertThat(replacement).isNotEqualTo(originalCiphertext);
+    assertThat(secrets.decrypt(replacement)).isEqualTo("replacement-secret");
   }
   @Test void issueActionsValidateRepositoryAndRequiredCredentials() throws Exception {
     var configuration=json.createObjectNode();

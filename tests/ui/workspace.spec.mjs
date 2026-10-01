@@ -455,3 +455,41 @@ test("GitHub, Forgejo, and Mattermost actions can be configured", async ({
   expect(mattermost.configuration.webhookUrlConfigured).toBe(true);
   expect(mattermost.configuration.ignoreTlsErrors).toBe(true);
 });
+
+test("actions can be edited without exposing or replacing stored credentials", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/actions");
+  const card = page
+    .locator("article")
+    .filter({ hasText: "GitHub engineering backlog" });
+  await card.getByRole("button", { name: "Edit action" }).click();
+
+  const token = page.getByLabel("GitHub access token", { exact: true });
+  await expect(page.getByRole("heading", { name: "Edit action" })).toBeVisible();
+  await expect(page.getByLabel("Action type")).toBeDisabled();
+  await expect(token).toHaveValue("");
+  await expect(token).toHaveAttribute(
+    "placeholder",
+    "Configured — leave blank to keep it",
+  );
+
+  await page
+    .getByLabel("Action name", { exact: true })
+    .fill("Edited GitHub backlog");
+  await page.getByLabel("Action enabled").uncheck();
+  await page.getByLabel("Labels").fill("edited");
+  await page.getByRole("button", { name: "Save action" }).click();
+
+  await expect(page.locator("#action-dialog")).not.toBeVisible();
+  await expect(page.locator("#page-notice")).toContainText("Action saved");
+  const edited = page.locator("article").filter({ hasText: "Edited GitHub backlog" });
+  await expect(edited).toContainText("Disabled");
+
+  const actions = await page.evaluate(() => window.smtp2x.api("/actions"));
+  const action = actions.find((candidate) => candidate.name === "Edited GitHub backlog");
+  expect(action.configuration.accessToken).toBe("");
+  expect(action.configuration.accessTokenConfigured).toBe(true);
+  expect(await page.locator("body").textContent()).not.toContain("fixture-only");
+});
