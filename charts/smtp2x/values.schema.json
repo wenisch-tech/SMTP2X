@@ -124,6 +124,12 @@
     "startupProbe": {"$ref": "#/definitions/probe"},
     "livenessProbe": {"$ref": "#/definitions/probe"},
     "readinessProbe": {"$ref": "#/definitions/probe"},
+    "externalSecretName": {
+      "type": "string",
+      "description": "Name of an existing Kubernetes Secret imported into the container with envFrom.",
+      "maxLength": 253,
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+    },
     "env": {
       "type": "object",
       "description": "Non-sensitive environment variables passed to the container.",
@@ -141,7 +147,7 @@
       "additionalProperties": {"$ref": "#/definitions/environmentValue"}
     }
   },
-  "required": ["image", "replicaCount", "updateStrategy", "securityContext", "service", "metrics", "ingress", "persistence", "resources", "startupProbe", "livenessProbe", "readinessProbe", "env", "secrets"],
+  "required": ["image", "replicaCount", "updateStrategy", "securityContext", "service", "metrics", "ingress", "persistence", "resources", "startupProbe", "livenessProbe", "readinessProbe", "externalSecretName", "env", "secrets"],
   "definitions": {
     "service": {
       "type": "object",

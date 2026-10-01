@@ -74,6 +74,8 @@ readinessProbe:
   timeoutSeconds: 5
   failureThreshold: 5
 # Environment variables are passed directly to the SMTP2X container.
+# Set externalSecretName to import every key from an existing Kubernetes Secret.
+externalSecretName: ""
 # To enable OIDC, configure these values (prefer secrets for the client secret):
 # env:
 #   SMTP2X_SECURITY_OIDC_ENABLED: "true"

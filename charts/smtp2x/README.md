@@ -17,6 +17,16 @@ The application exposes `/actuator/health`, `/actuator/health/liveness`, and `/a
 
 The HTTP Service is annotated for Prometheus scraping at `/actuator/prometheus` by default. Disable discovery with `metrics.serviceAnnotations.enabled=false`, or change the advertised path with `metrics.path`.
 
+## Existing Kubernetes Secret
+
+Set `externalSecretName` to import every key from an existing Secret as a container environment variable. This works with a Secret maintained by OpenBao, Vault, an external-secrets operator, or another controller:
+
+```yaml
+externalSecretName: smtp2x-runtime
+```
+
+The Secret must exist in the SMTP2X release namespace. Its keys must be valid environment variable names, for example `SMTP2X_ADMIN_PASSWORD` or `SPRING_DATASOURCE_PASSWORD`. Values configured through `env` or the chart-managed `secrets` map take precedence over duplicate keys imported through `externalSecretName`.
+
 ## Ingress
 
 The ingress follows the same host/path structure as the Kairos chart and forwards HTTP traffic to the SMTP2X HTTP Service. This example enables HTTPS with nginx and cert-manager:
@@ -123,6 +133,7 @@ secrets:
 | `startupProbe` | See `values.yaml` | Startup health probe; delays liveness until startup succeeds |
 | `livenessProbe` | See `values.yaml` | Liveness probe; failures restart the container |
 | `readinessProbe` | See `values.yaml` | Readiness probe; failures remove the pod from Services |
+| `externalSecretName` | empty | Existing Kubernetes Secret imported with `envFrom` |
 | `env.OIDC_IGNORE_TLS` | `"false"` | Temporarily disable OIDC certificate and hostname verification |
 | `env` | See `values.yaml` | Plain environment variables |
 | `secrets` | `{}` | Secret-backed environment variables |
