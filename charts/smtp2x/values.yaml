@@ -1,10 +1,44 @@
-image: {repository: ghcr.io/wenisch-tech/smtp2x, tag: "0.1.2", pullPolicy: IfNotPresent}
+image:
+  repository: ghcr.io/wenisch-tech/smtp2x
+  tag: "0.1.2"
+  pullPolicy: IfNotPresent
 replicaCount: 1
 service:
-  http: {type: ClusterIP, port: 8080}
-  smtp: {type: LoadBalancer, port: 2525}
-ingress: {enabled: false, className: "", host: smtp2x.example.com, tls: []}
-persistence: {enabled: true, storageClassName: "", size: 10Gi}
-resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {cpu: "2", memory: 2Gi}}
+  http:
+    type: ClusterIP
+    port: 8080
+  smtp:
+    type: ClusterIP
+    port: 2525
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: smtp2x.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+persistence:
+  enabled: true
+  storageClassName: ""
+  size: 10Gi
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+# Environment variables are passed directly to the SMTP2X container.
+# To enable OIDC, configure these values (prefer secrets for the client secret):
+# env:
+#   SMTP2X_SECURITY_OIDC_ENABLED: "true"
+#   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: smtp2x
+#   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
+#   SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.example.com/realms/smtp2x
+# secrets:
+#   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: change-me
 env: {}
 secrets: {}

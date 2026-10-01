@@ -77,11 +77,8 @@ jobs:
           yq eval ".version = \"$VERSION\"" -i charts/smtp2x/Chart.yaml
           yq eval ".image.tag = \"$VERSION\"" -i charts/smtp2x/values.yaml
 
-      - name: Generate Helm values schema
-        run: |
-          # Git-based plugins do not support Helm signature verification.
-          helm plugin install https://github.com/karuppiah7890/helm-schema-gen.git --verify=false
-          helm schema-gen charts/smtp2x/values.yaml > charts/smtp2x/values.schema.json
+      - name: Validate Helm chart and values schema
+        run: helm lint charts/smtp2x
 
       - name: Build release artifacts and SBOM
         run: |

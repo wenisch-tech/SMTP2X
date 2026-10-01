@@ -101,6 +101,7 @@ jobs:
         run: |
           helm lint charts/smtp2x
           helm template smtp2x charts/smtp2x >/dev/null
+          helm template smtp2x charts/smtp2x --set ingress.enabled=true >/dev/null
 
   container:
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'

@@ -200,21 +200,14 @@ The username and password must be supplied together. SMTP2X creates this account
 
 Local login always remains available for the bootstrap administrator. New OIDC users are provisioned as `PENDING`; they can see only the access-pending page until an administrator changes their role to `VIEWER` or `ADMIN`.
 
-Set `SMTP2X_SECURITY_OIDC_ENABLED=true` and configure Spring Security’s standard OIDC client registration. A Keycloak example:
+Set `SMTP2X_SECURITY_OIDC_ENABLED=true` and configure Spring Security’s standard OIDC client registration. The complete Keycloak registration can be supplied through environment variables:
 
-```yaml
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          keycloak:
-            client-id: smtp2x
-            client-secret: ${SMTP2X_OIDC_CLIENT_SECRET}
-            scope: openid,profile,email
-        provider:
-          keycloak:
-            issuer-uri: https://auth.example.com/realms/smtp2x
+```bash
+SMTP2X_SECURITY_OIDC_ENABLED=true
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=smtp2x
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET=change-me
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE=openid,profile,email
+SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI=https://auth.example.com/realms/smtp2x
 ```
 
 Configure this callback at the provider:
@@ -285,7 +278,7 @@ helm upgrade --install smtp2x oci://ghcr.io/wenisch-tech/helm-charts/smtp2x \
   --set env.SPRING_DATASOURCE_USERNAME=smtp2x
 ```
 
-The SMTP Service defaults to `LoadBalancer` and the HTTP Service defaults to `ClusterIP`. Configure your ingress controller or reverse proxy for HTTP, and verify that its TCP configuration preserves the client address before enforcing SMTP CIDR allowlists.
+The SMTP Service defaults to `LoadBalancer` and the HTTP Service defaults to `ClusterIP`. The chart includes an optional HTTP ingress with configurable hosts, paths, annotations, ingress class, and TLS. See [`charts/smtp2x/README.md`](charts/smtp2x/README.md) for ingress and environment-based OIDC examples. Verify that any SMTP load balancer or TCP ingress preserves the client address before enforcing SMTP CIDR allowlists.
 
 ## Releases and verification
 
