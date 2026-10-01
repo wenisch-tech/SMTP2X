@@ -8,8 +8,9 @@
     <java.version>25</java.version>
     <subethasmtp.version>7.1.7</subethasmtp.version>
     <springdoc.version>3.1.1</springdoc.version>
-    <tomcat.version>11.0.25</tomcat.version>
-    <jackson-bom.version>3.1.6</jackson-bom.version>
+    <tomcat.version>11.0.26</tomcat.version>
+    <jackson-2-bom.version>2.22.3</jackson-2-bom.version>
+    <jackson-bom.version>3.1.7</jackson-bom.version>
   </properties>
   <dependencies>
     <!-- Spring Boot 4 defaults to Jackson 3; SMTP2X uses the stable Jackson 2 tree for integration payloads. -->
