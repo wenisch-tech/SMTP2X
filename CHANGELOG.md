@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.0 - 2026-10-01
+
+## [0.2.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.1.2...v0.2.0) (2026-10-01)
+
+
+### Features
+
+* added IGNORE_TLS FLag for OIDC ([6f95968](https://github.com/wenisch-tech/SMTP2X/commit/6f95968da98fd7675f68f0189bd7936e73c43fa0))
+
+
+### Bug Fixes
+
+* Added ingress and example for OIDC Configuration ([160b8f3](https://github.com/wenisch-tech/SMTP2X/commit/160b8f361eebcaa48b794e8f43c66ce25b71ff6c))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.2.0`
+
+
 ## v0.1.2 - 2026-09-30
 
 ### [0.1.2](https://github.com/wenisch-tech/SMTP2X/compare/v0.1.1...v0.1.2) (2026-09-30)
