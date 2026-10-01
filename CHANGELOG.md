@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.2 - 2026-10-01
+
+### [0.2.2](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.1...v0.2.2) (2026-10-01)
+
+
+### Bug Fixes
+
+* update ing ([5e3e0bf](https://github.com/wenisch-tech/SMTP2X/commit/5e3e0bf19d7fe311b4c0c844b9a7f7a7e5a236ba))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.2.2`
+
+
 ## v0.2.1 - 2026-10-01
 
 ### [0.2.1](https://github.com/wenisch-tech/SMTP2X/compare/v0.2.0...v0.2.1) (2026-10-01)
