@@ -99,6 +99,12 @@
     "env": {
       "type": "object",
       "description": "Non-sensitive environment variables passed to the container.",
+      "properties": {
+        "OIDC_IGNORE_TLS": {
+          "description": "Disable OIDC certificate and hostname verification for temporary troubleshooting.",
+          "enum": ["true", "false", true, false]
+        }
+      },
       "additionalProperties": {"$ref": "#/definitions/environmentValue"}
     },
     "secrets": {

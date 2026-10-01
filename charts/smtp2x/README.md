@@ -46,6 +46,7 @@ SMTP2X uses the Spring Security OAuth2 client named `keycloak`. Every part of it
 env:
   SMTP2X_SECURITY_OIDC_ENABLED: "true"
   SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED: "true"
+  OIDC_IGNORE_TLS: "false"
   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: smtp2x
   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
   SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.example.com/realms/smtp2x
@@ -74,6 +75,8 @@ https://smtp2x.example.com/login/oauth2/code/keycloak
 The ingress must preserve `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-Port`. SMTP2X already enables Spring's forwarded-header support so it generates the public HTTPS callback URL.
 
 New OIDC users start with the `PENDING` role. When role mapping is enabled, `SMTP2X_Admin` maps to Admin and `SMTP2X_Viewer` maps to Viewer.
+
+For temporary troubleshooting with a private or self-signed issuer certificate, set `env.OIDC_IGNORE_TLS` to `"true"`. This disables certificate and hostname verification for OIDC discovery, token exchange, and JWK retrieval. Install the issuer CA in the container trust store for production deployments instead.
 
 ## PostgreSQL
 
@@ -109,7 +112,8 @@ secrets:
 | `persistence.storageClassName` | empty | Storage class, or the cluster default |
 | `persistence.size` | `10Gi` | Requested storage size |
 | `resources` | See `values.yaml` | Container requests and limits |
-| `env` | `{}` | Plain environment variables |
+| `env.OIDC_IGNORE_TLS` | `"false"` | Temporarily disable OIDC certificate and hostname verification |
+| `env` | See `values.yaml` | Plain environment variables |
 | `secrets` | `{}` | Secret-backed environment variables |
 
 When the same variable exists in both `env` and `secrets`, the Secret-backed value takes precedence.

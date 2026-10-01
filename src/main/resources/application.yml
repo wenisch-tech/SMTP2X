@@ -15,6 +15,7 @@ smtp2x:
     oidc:
       enabled: ${SMTP2X_SECURITY_OIDC_ENABLED:false}
       role-mapping-enabled: ${SMTP2X_SECURITY_OIDC_ROLE_MAPPING_ENABLED:false}
+      ignore-tls: ${OIDC_IGNORE_TLS:false}
   crypto:
     key: ${SMTP2X_CRYPTO_KEY:}
   smtp:

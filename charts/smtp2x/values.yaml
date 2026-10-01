@@ -40,5 +40,6 @@ resources:
 #   SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://auth.example.com/realms/smtp2x
 # secrets:
 #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: change-me
-env: {}
+env:
+  OIDC_IGNORE_TLS: "false"
 secrets: {}

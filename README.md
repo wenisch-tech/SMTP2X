@@ -204,6 +204,7 @@ Set `SMTP2X_SECURITY_OIDC_ENABLED=true` and configure Spring Security’s standa
 
 ```bash
 SMTP2X_SECURITY_OIDC_ENABLED=true
+OIDC_IGNORE_TLS=false
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID=smtp2x
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET=change-me
 SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE=openid,profile,email
@@ -223,6 +224,8 @@ SMTP2X identifies a user from the verified ID token’s `email` claim, falling b
 | `SMTP2X_Admin` | Admin |
 | `SMTP2X_Viewer` | Viewer |
 | Neither | Pending |
+
+For temporary troubleshooting with a private or self-signed issuer certificate, set `OIDC_IGNORE_TLS=true`. This disables certificate and hostname verification for OIDC discovery, token exchange, and JWK retrieval. Install the issuer CA in the container trust store for production deployments instead.
 
 Behind an HTTPS reverse proxy or Kubernetes ingress, retain `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-Port`. SMTP2X uses Spring’s forwarded-header support so the OIDC callback uses the public HTTPS URL.
 

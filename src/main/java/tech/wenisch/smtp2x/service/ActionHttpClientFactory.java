@@ -18,7 +18,9 @@ import org.springframework.web.client.RestClient;
 
 @Component
 public class ActionHttpClientFactory {
-  private final RestClient strictClient = RestClient.builder().build();
+  private final RestClient strictClient = RestClient.builder()
+      .requestFactory(new SimpleClientHttpRequestFactory())
+      .build();
   private final RestClient insecureClient = RestClient.builder()
       .requestFactory(new InsecureTlsRequestFactory())
       .build();
