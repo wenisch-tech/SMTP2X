@@ -26,11 +26,12 @@ class ExternalCleanupServiceTest {
     var repository = mock(ExternalCleanupJobRepository.class);
     var handler = mock(CleanupActionHandler.class);
     var audit = mock(AuditService.class);
+    var metrics = mock(ApplicationMetrics.class);
     var json = new ObjectMapper();
     when(handler.type()).thenReturn(ActionType.GITLAB_ISSUE);
     when(repository.save(any(ExternalCleanupJob.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
-    var service = new ExternalCleanupService(repository, json, List.of(handler), audit);
+    var service = new ExternalCleanupService(repository, json, List.of(handler), audit, metrics);
     var configuration = json.createObjectNode();
     configuration.put("autoDeleteAfter", "5m");
     configuration.put("accessToken", "enc:test-token");
@@ -60,6 +61,8 @@ class ExternalCleanupServiceTest {
     assertThat(job.getStatus()).isEqualTo(CleanupStatus.SUCCEEDED);
     assertThat(job.getLastError()).isEmpty();
     assertThat(job.getConfigurationSnapshot()).isEqualTo("{}");
+    verify(metrics).cleanupAttempt(ActionType.GITLAB_ISSUE,
+        ApplicationMetrics.Outcome.SUCCEEDED);
   }
 
   @Test
@@ -67,6 +70,7 @@ class ExternalCleanupServiceTest {
     var repository = mock(ExternalCleanupJobRepository.class);
     var handler = mock(CleanupActionHandler.class);
     var audit = mock(AuditService.class);
+    var metrics = mock(ApplicationMetrics.class);
     var json = new ObjectMapper();
     when(handler.type()).thenReturn(ActionType.FORGEJO_ISSUE);
     doThrow(new DeliveryException("Forgejo cleanup returned 503", true))
@@ -76,7 +80,7 @@ class ExternalCleanupServiceTest {
         snapshot, "23", Instant.now());
     job.claim();
     when(repository.findById(job.getId())).thenReturn(Optional.of(job));
-    var service = new ExternalCleanupService(repository, json, List.of(handler), audit);
+    var service = new ExternalCleanupService(repository, json, List.of(handler), audit, metrics);
 
     service.cleanup(job.getId());
 
@@ -84,5 +88,7 @@ class ExternalCleanupServiceTest {
     assertThat(job.getAttempts()).isEqualTo(1);
     assertThat(job.getLastError()).contains("503");
     assertThat(job.getConfigurationSnapshot()).isEqualTo(snapshot);
+    verify(metrics).cleanupAttempt(ActionType.FORGEJO_ISSUE,
+        ApplicationMetrics.Outcome.RETRY);
   }
 }

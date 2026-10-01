@@ -1,0 +1,286 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Whether the selected SMTP2X target is reachable by Prometheus.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "max(up{job=~\"$job\", instance=~\"$instance\"})", "instant": true, "legendFormat": "SMTP2X", "range": false, "refId": "A"}],
+      "title": "Availability",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Messages durably accepted during the selected dashboard range.",
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "green", "mode": "fixedColor"}, "decimals": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "sum(increase(smtp2x_mail_received_total{job=~\"$job\", instance=~\"$instance\"}[$__range])) or vector(0)", "instant": true, "legendFormat": "Received", "range": false, "refId": "A"}],
+      "title": "Mail Received",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Action jobs created from accepted mail during the selected range.",
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "blue", "mode": "fixedColor"}, "decimals": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "sum(increase(smtp2x_action_triggered_total{job=~\"$job\", instance=~\"$instance\"}[$__range])) or vector(0)", "instant": true, "legendFormat": "Triggered", "range": false, "refId": "A"}],
+      "title": "Actions Triggered",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Successful action attempts as a percentage of all attempts in the selected range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 90}, {"color": "green", "value": 99}]},
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "100 * sum(increase(smtp2x_action_delivery_attempts_total{job=~\"$job\", instance=~\"$instance\", outcome=\"succeeded\"}[$__range])) / clamp_min(sum(increase(smtp2x_action_delivery_attempts_total{job=~\"$job\", instance=~\"$instance\"}[$__range])), 1)", "instant": true, "legendFormat": "Success", "range": false, "refId": "A"}],
+      "title": "Delivery Success Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Accepted and rejected SMTP messages per second.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "messages / second", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 18, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "id": 5,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"editorMode": "code", "expr": "sum(rate(smtp2x_mail_received_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "accepted", "range": true, "refId": "A"},
+        {"editorMode": "code", "expr": "sum(rate(smtp2x_mail_rejected_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "rejected", "range": true, "refId": "B"}
+      ],
+      "title": "SMTP Traffic",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "New action jobs created per second, grouped by integration type.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "actions / second", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 24, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}}, "min": 0, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "id": 6,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "sum by (action_type) (rate(smtp2x_action_triggered_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{action_type}}", "range": true, "refId": "A"}],
+      "title": "Actions Triggered by Type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Action attempt rate split by completed outcome.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "attempts / second", "axisPlacement": "auto", "drawStyle": "bars", "fillOpacity": 70, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}}, "min": 0, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 7,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "sum by (outcome) (rate(smtp2x_action_delivery_attempts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{outcome}}", "range": true, "refId": "A"}],
+      "title": "Delivery Outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Mean action delivery duration calculated from timer sum and count.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 12, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "sum by (action_type) (rate(smtp2x_action_delivery_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum by (action_type) (rate(smtp2x_action_delivery_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])), 0.000001)", "legendFormat": "{{action_type}}", "range": true, "refId": "A"}],
+      "title": "Average Delivery Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Current persisted delivery jobs by state.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "decimals": 0, "min": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 20},
+      "id": 9,
+      "options": {"displayMode": "gradient", "maxVizHeight": 300, "minVizHeight": 16, "minVizWidth": 8, "namePlacement": "auto", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "sizing": "auto", "valueMode": "color"},
+      "targets": [{"editorMode": "code", "expr": "sum by (status) (smtp2x_delivery_jobs{job=~\"$job\", instance=~\"$instance\"})", "instant": true, "legendFormat": "{{status}}", "range": false, "refId": "A"}],
+      "title": "Delivery Queue",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Cleanup attempts during the selected range, grouped by outcome.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "decimals": 0, "min": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 20},
+      "id": 10,
+      "options": {"displayMode": "gradient", "maxVizHeight": 300, "minVizHeight": 16, "minVizWidth": 8, "namePlacement": "auto", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "sizing": "auto", "valueMode": "color"},
+      "targets": [{"editorMode": "code", "expr": "sum by (outcome) (increase(smtp2x_cleanup_attempts_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))", "instant": true, "legendFormat": "{{outcome}}", "range": false, "refId": "A"}],
+      "title": "Cleanup Outcomes",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Current persisted cleanup jobs by state.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "decimals": 0, "min": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 20},
+      "id": 11,
+      "options": {"displayMode": "gradient", "maxVizHeight": 300, "minVizHeight": 16, "minVizWidth": 8, "namePlacement": "auto", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "sizing": "auto", "valueMode": "color"},
+      "targets": [{"editorMode": "code", "expr": "sum by (status) (smtp2x_cleanup_jobs{job=~\"$job\", instance=~\"$instance\"})", "instant": true, "legendFormat": "{{status}}", "range": false, "refId": "A"}],
+      "title": "Cleanup Queue",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Mean accepted SMTP message size.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 18, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 28},
+      "id": 12,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [{"editorMode": "code", "expr": "sum(rate(smtp2x_mail_size_bytes_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) / clamp_min(sum(rate(smtp2x_mail_size_bytes_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])), 0.000001)", "legendFormat": "average size", "range": true, "refId": "A"}],
+      "title": "Average Mail Size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Attachments accepted per second.",
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "purple", "mode": "fixedColor"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "attachments / second", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 24, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 28},
+      "id": 13,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [{"editorMode": "code", "expr": "sum(rate(smtp2x_mail_attachments_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "attachments", "range": true, "refId": "A"}],
+      "title": "Attachment Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Rejected SMTP messages during the selected range by bounded reason.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "decimals": 0, "min": 0, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 28},
+      "id": 14,
+      "options": {"displayMode": "gradient", "maxVizHeight": 300, "minVizHeight": 16, "minVizWidth": 8, "namePlacement": "auto", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "sizing": "auto", "valueMode": "color"},
+      "targets": [{"editorMode": "code", "expr": "sum by (reason) (increase(smtp2x_mail_rejected_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))", "instant": true, "legendFormat": "{{reason}}", "range": false, "refId": "A"}],
+      "title": "SMTP Rejections",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "JVM heap usage and committed capacity for the selected SMTP2X targets.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 16, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "min": 0, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+      "id": 15,
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"editorMode": "code", "expr": "sum(jvm_memory_used_bytes{job=~\"$job\", instance=~\"$instance\", area=\"heap\"})", "legendFormat": "used", "range": true, "refId": "A"},
+        {"editorMode": "code", "expr": "sum(jvm_memory_committed_bytes{job=~\"$job\", instance=~\"$instance\", area=\"heap\"})", "legendFormat": "committed", "range": true, "refId": "B"}
+      ],
+      "title": "JVM Heap",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "description": "Process CPU utilization reported by Micrometer.",
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "orange", "mode": "fixedColor"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 16, "gradientMode": "opacity", "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}}, "max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
+      "id": 16,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "avg by (instance) (process_cpu_usage{job=~\"$job\", instance=~\"$instance\"})", "legendFormat": "{{instance}}", "range": true, "refId": "A"}],
+      "title": "Process CPU",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["smtp2x", "prometheus", "mail"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "definition": "label_values(smtp2x_mail_received_total, job)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Job",
+        "multi": true,
+        "name": "job",
+        "options": [],
+        "query": {"query": "label_values(smtp2x_mail_received_total, job)", "refId": "PrometheusVariableQueryEditor-Job"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "definition": "label_values(smtp2x_mail_received_total{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {"query": "label_values(smtp2x_mail_received_total{job=~\"$job\"}, instance)", "refId": "PrometheusVariableQueryEditor-Instance"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "SMTP2X Operations",
+  "uid": "smtp2x-operations",
+  "version": 1,
+  "weekStart": ""
+}

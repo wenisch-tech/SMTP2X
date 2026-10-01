@@ -320,11 +320,48 @@ cosign verify-blob smtp2x-<version>.jar \
   --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
 ```
 
-## Observability and API
+## Monitoring
 
-- Liveness: `/actuator/health/liveness`
-- Readiness: `/actuator/health/readiness`
-- Prometheus metrics: `/actuator/prometheus`
+SMTP2X publishes Prometheus metrics at `/actuator/prometheus`. The endpoint is intentionally available without application authentication so Prometheus can scrape it; metric labels contain only bounded action types, statuses, outcomes, and rejection reasons. Liveness is available at `/actuator/health/liveness` and readiness at `/actuator/health/readiness`.
+
+The Helm chart enables standard scrape annotations on the HTTP Service by default:
+
+```yaml
+metrics:
+  path: /actuator/prometheus
+  serviceAnnotations:
+    enabled: true
+```
+
+For Docker or another static target, add SMTP2X to `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: smtp2x
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["smtp2x:8080"]
+```
+
+Application metrics include:
+
+| Metric | Description |
+|---|---|
+| `smtp2x_mail_received_total` | Messages durably accepted over SMTP |
+| `smtp2x_mail_rejected_total{reason}` | Rejected messages by bounded reason |
+| `smtp2x_mail_size_bytes_*` | Accepted message size summary |
+| `smtp2x_mail_attachments_total` | Attachments in accepted messages |
+| `smtp2x_action_triggered_total{action_type}` | Delivery jobs created by action type |
+| `smtp2x_action_delivery_attempts_total{action_type,outcome}` | Delivery attempts by action type and outcome |
+| `smtp2x_action_delivery_duration_seconds_*` | Delivery duration by action type and outcome |
+| `smtp2x_delivery_jobs{status}` | Current persisted delivery jobs by status |
+| `smtp2x_cleanup_attempts_total{action_type,outcome}` | External cleanup attempts by outcome |
+| `smtp2x_cleanup_jobs{status}` | Current persisted cleanup jobs by status |
+
+Import [`docs/smtp2x-grafana-dashboard.json`](docs/smtp2x-grafana-dashboard.json) through **Dashboards → New → Import** in Grafana. Choose the Prometheus datasource from the selector at the top of the imported dashboard, then optionally narrow the view by `job` and `instance`.
+
+## API
+
 - OpenAPI document: `/v3/api-docs`
 - Swagger UI: `/swagger-ui.html`
 

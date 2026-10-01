@@ -20,6 +20,10 @@ service:
   smtp:
     type: ClusterIP
     port: 2525
+metrics:
+  path: /actuator/prometheus
+  serviceAnnotations:
+    enabled: true
 ingress:
   enabled: false
   className: ""

@@ -15,6 +15,8 @@ SMTP2X uses a local H2 database and persistent volume by default. `replicaCount`
 
 The application exposes `/actuator/health`, `/actuator/health/liveness`, and `/actuator/health/readiness`. The startup probe allows 150 seconds for the JVM, Flyway migration, and SMTP listener to start before Kubernetes evaluates liveness. A failed readiness probe only removes the pod from Services; a failed startup or liveness probe restarts it.
 
+The HTTP Service is annotated for Prometheus scraping at `/actuator/prometheus` by default. Disable discovery with `metrics.serviceAnnotations.enabled=false`, or change the advertised path with `metrics.path`.
+
 ## Ingress
 
 The ingress follows the same host/path structure as the Kairos chart and forwards HTTP traffic to the SMTP2X HTTP Service. This example enables HTTPS with nginx and cert-manager:
@@ -107,6 +109,8 @@ secrets:
 | `service.http.port` | `8080` | HTTP Service port |
 | `service.smtp.type` | `ClusterIP` | SMTP Service type |
 | `service.smtp.port` | `2525` | SMTP Service port |
+| `metrics.path` | `/actuator/prometheus` | Prometheus scrape path |
+| `metrics.serviceAnnotations.enabled` | `true` | Add Prometheus scrape annotations to the HTTP Service |
 | `ingress.enabled` | `false` | Create an HTTP Ingress |
 | `ingress.className` | empty | Ingress class name |
 | `ingress.annotations` | `{}` | Ingress annotations |

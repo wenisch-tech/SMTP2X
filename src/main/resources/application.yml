@@ -6,7 +6,10 @@ spring:
   servlet: { multipart: { max-file-size: 10MB, max-request-size: 11MB } }
 server: { forward-headers-strategy: framework }
 management:
-  endpoints: { web: { exposure: { include: health,info,prometheus } } }
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
   endpoint:
     health:
       probes:

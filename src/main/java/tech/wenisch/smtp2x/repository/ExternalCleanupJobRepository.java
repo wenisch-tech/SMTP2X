@@ -10,6 +10,14 @@ import tech.wenisch.smtp2x.domain.CleanupStatus;
 import tech.wenisch.smtp2x.domain.ExternalCleanupJob;
 
 public interface ExternalCleanupJobRepository extends JpaRepository<ExternalCleanupJob, UUID> {
+  interface StatusCount {
+    CleanupStatus getStatus();
+    long getTotal();
+  }
+
+  @Query("select j.status as status, count(j) as total from ExternalCleanupJob j group by j.status")
+  List<StatusCount> countStatuses();
+
   @Query("select j from ExternalCleanupJob j where j.status = :status "
       + "and j.nextAttemptAt <= :now order by j.nextAttemptAt")
   List<ExternalCleanupJob> findDue(@Param("status") CleanupStatus status,

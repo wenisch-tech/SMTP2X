@@ -21,13 +21,15 @@ public class ExternalCleanupService {
   private final ObjectMapper json;
   private final Map<ActionType, CleanupActionHandler> handlers = new EnumMap<>(ActionType.class);
   private final AuditService audit;
+  private final ApplicationMetrics metrics;
 
   public ExternalCleanupService(ExternalCleanupJobRepository jobs, ObjectMapper json,
-      List<CleanupActionHandler> handlers, AuditService audit) {
+      List<CleanupActionHandler> handlers, AuditService audit, ApplicationMetrics metrics) {
     this.jobs = jobs;
     this.json = json;
     handlers.forEach(handler -> this.handlers.put(handler.type(), handler));
     this.audit = audit;
+    this.metrics = metrics;
   }
 
   public void schedule(UUID deliveryId, ActionType actionType, String configurationSnapshot,
@@ -72,17 +74,21 @@ public class ExternalCleanupService {
       jobs.save(job);
       audit.record("system", "CLEANUP_SUCCEEDED", "cleanup", job.getId().toString(),
           job.getActionType() + " resource deleted");
+      metrics.cleanupAttempt(job.getActionType(), ApplicationMetrics.Outcome.SUCCEEDED);
     } catch (DeliveryException e) {
       boolean retry = e.retryable() && job.getAttempts() < 4;
       job.fail(e.getMessage(), retry, Instant.now().plus(retryDelay(job.getAttempts())));
       jobs.save(job);
       audit.record("system", retry ? "CLEANUP_RETRY" : "CLEANUP_FAILED", "cleanup",
           job.getId().toString(), e.getMessage());
+      metrics.cleanupAttempt(job.getActionType(), retry ? ApplicationMetrics.Outcome.RETRY
+          : ApplicationMetrics.Outcome.FAILED);
     } catch (Exception e) {
       job.fail(e.getMessage(), false, Instant.now());
       jobs.save(job);
       audit.record("system", "CLEANUP_FAILED", "cleanup", job.getId().toString(),
           String.valueOf(e.getMessage()));
+      metrics.cleanupAttempt(job.getActionType(), ApplicationMetrics.Outcome.FAILED);
     }
   }
 

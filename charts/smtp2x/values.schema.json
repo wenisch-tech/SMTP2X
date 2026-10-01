@@ -33,6 +33,22 @@
         "smtp": {"$ref": "#/definitions/service"}
       }
     },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "serviceAnnotations"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^/"},
+        "serviceAnnotations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean"}
+          }
+        }
+      }
+    },
     "ingress": {
       "type": "object",
       "additionalProperties": false,
@@ -125,7 +141,7 @@
       "additionalProperties": {"$ref": "#/definitions/environmentValue"}
     }
   },
-  "required": ["image", "replicaCount", "updateStrategy", "securityContext", "service", "ingress", "persistence", "resources", "startupProbe", "livenessProbe", "readinessProbe", "env", "secrets"],
+  "required": ["image", "replicaCount", "updateStrategy", "securityContext", "service", "metrics", "ingress", "persistence", "resources", "startupProbe", "livenessProbe", "readinessProbe", "env", "secrets"],
   "definitions": {
     "service": {
       "type": "object",

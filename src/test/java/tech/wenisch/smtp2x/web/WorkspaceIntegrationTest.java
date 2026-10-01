@@ -65,6 +65,12 @@ class WorkspaceIntegrationTest {
     mvc.perform(get("/administration").with(user(viewer).roles("VIEWER"))).andExpect(status().isForbidden());
     mvc.perform(get("/rules").with(user(viewer).roles("VIEWER"))).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("id=\"rule-form\""))));
   }
+  @Test void prometheusMetricsArePublic() throws Exception {
+    mvc.perform(get("/actuator/prometheus"))
+      .andExpect(status().isOk())
+      .andExpect(content().string(org.hamcrest.Matchers.containsString("smtp2x_mail_received_total")))
+      .andExpect(content().string(org.hamcrest.Matchers.containsString("smtp2x_delivery_jobs")));
+  }
   @Test void actionCreationHonorsDisabledState() throws Exception {
     mvc.perform(post("/api/v1/actions").with(user(admin).roles("ADMIN")).with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Paused\",\"type\":\"WEBHOOK\",\"enabled\":false,\"configuration\":{\"url\":\"https://example.com/hook\"}}"))
       .andExpect(status().isCreated()).andExpect(jsonPath("$.enabled").value(false));
