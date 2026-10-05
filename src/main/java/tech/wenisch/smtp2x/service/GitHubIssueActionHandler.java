@@ -36,7 +36,9 @@ public class GitHubIssueActionHandler implements ActionHandler {
     String token = secrets.decrypt(required(config, "accessToken"));
     ObjectNode issue = json.createObjectNode();
     issue.put("title", MessageTemplate.render(config.path("titleTemplate").asText("{{subject}}"), data));
-    issue.put("body", MessageTemplate.render(config.path("bodyTemplate").asText("{{body}}"), data));
+    issue.put("body", AttachmentMarkdown.render(
+        MessageTemplate.render(config.path("bodyTemplate").asText("{{body}}"), data),
+        data.attachments(), java.util.Map.of()));
     copyStrings(config, issue, "labels");
     copyStrings(config, issue, "assignees");
     String url = api + "/repos/" + segment(repository[0]) + "/" + segment(repository[1]) + "/issues";
@@ -53,8 +55,10 @@ public class GitHubIssueActionHandler implements ActionHandler {
             boolean retry = status == 429 || status >= 500;
             throw new DeliveryException("GitHub returned " + result.getStatusCode(), retry);
           });
+      String warnings = data.attachments().isEmpty() ? ""
+          : "GitHub's issue API cannot upload attachments; attachment notes were added to the body";
       return new DeliveryResult(response.path("html_url").asText(),
-          "GitHub issue #" + response.path("number").asText() + " created", "");
+          "GitHub issue #" + response.path("number").asText() + " created", warnings);
     } catch (DeliveryException e) {
       throw e;
     } catch (Exception e) {

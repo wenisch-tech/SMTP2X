@@ -58,6 +58,8 @@ class ActionHttpClientFactoryTest {
     var configuration = json.createObjectNode().put("ignoreTlsErrors", true);
     assertThat(factory.forConfiguration(configuration).get().uri(url).retrieve().body(String.class))
         .isEqualTo("ready");
+    assertThat(factory.forPatchConfiguration(configuration).patch().uri(url).body("")
+        .retrieve().body(String.class)).isEqualTo("ready");
   }
 
   private SSLContext serverContext() throws Exception {

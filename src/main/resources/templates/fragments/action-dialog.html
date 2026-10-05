@@ -76,6 +76,23 @@
               type="password"
               required
               autocomplete="new-password" /></label
+          ><label
+            >Title template<input
+              name="gitlabTitleTemplate"
+              value="{{subject}}"
+              required /></label
+          ><label
+            >Description template<textarea
+              name="gitlabDescriptionTemplate"
+              rows="4"
+              required
+            >{{body}}
+
+From: {{from}}
+Recipients: {{recipients}}</textarea></label
+          ><label class="check"
+            ><input type="checkbox" name="gitlabUploadAttachments" checked />
+            Upload and embed attachments</label
           ><label class="check"
             ><input type="checkbox" name="useRecipient" /> Use recipient as
             assignee</label
@@ -130,7 +147,11 @@
 
 From: {{from}}
 Recipients: {{recipients}}</textarea></label
-          ><label
+          ><p class="muted small">
+            GitHub's issue API cannot upload files. Attachment names are added
+            to the issue body, but image bytes are not transferred.
+          </p>
+          <label
             >Labels <span class="optional">one per line</span
             ><textarea name="githubLabels" rows="2"></textarea></label
           ><label
@@ -171,6 +192,9 @@ Recipients: {{recipients}}</textarea></label
 
 From: {{from}}
 Recipients: {{recipients}}</textarea></label
+          ><label class="check"
+            ><input type="checkbox" name="forgejoUploadAttachments" checked />
+            Upload and embed attachments</label
           ><label
             >Label IDs <span class="optional">one numeric ID per line</span
             ><textarea name="forgejoLabelIds" rows="2"></textarea></label

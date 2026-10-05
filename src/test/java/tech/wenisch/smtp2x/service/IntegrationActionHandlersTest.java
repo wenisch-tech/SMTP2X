@@ -2,21 +2,27 @@ package tech.wenisch.smtp2x.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import tech.wenisch.smtp2x.config.Smtp2xProperties;
+import tech.wenisch.smtp2x.domain.InboundAttachment;
 import tech.wenisch.smtp2x.domain.InboundMessage;
 
 class IntegrationActionHandlersTest {
+  @TempDir Path temporaryDirectory;
   private HttpServer server;
   private ObjectMapper json;
   private SecretCipher secrets;
@@ -37,7 +43,10 @@ class IntegrationActionHandlersTest {
         "{\"number\":17,\"html_url\":\"https://github.example/acme/alerts/issues/17\"}");
     endpoint("/api/v1/repos/acme/alerts/issues", 201,
         "{\"number\":23,\"html_url\":\"https://forgejo.example/acme/alerts/issues/23\"}");
+    endpoint("/api/v1/repos/acme/alerts/issues/23/assets", 201,
+        "{\"id\":9,\"browser_download_url\":\"https://forgejo.example/attachments/graph.png\"}");
     endpoint("/hooks/mattermost-token", 200, "ok");
+    endpoint("/hooks/generic", 200, "ok");
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -118,6 +127,56 @@ class IntegrationActionHandlersTest {
         .contains("\"channel\":\"ops-alerts\"")
         .contains("\"username\":\"SMTP2X\"")
         .contains("\"icon_url\":\"https://example.com/smtp2x.png\"");
+  }
+
+  @Test
+  void forgejoUploadsInlineImageAndUpdatesIssueBody() throws Exception {
+    Path image = temporaryDirectory.resolve("graph.png");
+    Files.writeString(image, "image");
+    var attachment = new InboundAttachment(message().message().getId(), "graph.png", "image/png",
+        "graph-1", "inline", image.toString(), Files.size(image));
+    var email = new InboundMessage("monitor@example.com", "[]", "Database unavailable",
+        "Graph: ![latency](cid:graph-1)", null, "unused");
+    var data = new MessageData(email, List.of("ops@example.com"), List.of(attachment));
+    var config = json.createObjectNode();
+    config.put("baseUrl", baseUrl);
+    config.put("repository", "acme/alerts");
+    config.put("accessToken", "forgejo-token");
+    config.put("bodyTemplate", "{{body}}");
+
+    var result = new ForgejoIssueActionHandler(json, secrets, new ActionHttpClientFactory())
+        .deliver(data, config);
+
+    assertThat(result.warnings()).isEmpty();
+    assertThat(methods.get("/api/v1/repos/acme/alerts/issues/23/assets").get())
+        .isEqualTo("POST");
+    assertThat(methods.get("/api/v1/repos/acme/alerts/issues/23").get()).isEqualTo("PATCH");
+    assertThat(bodies.get("/api/v1/repos/acme/alerts/issues/23").get())
+        .contains("https://forgejo.example/attachments/graph.png")
+        .doesNotContain("cid:graph-1");
+  }
+
+  @Test
+  void genericWebhookIncludesMarkdownBodyAndBase64AttachmentContent() throws Exception {
+    Path image = temporaryDirectory.resolve("graph.png");
+    Files.writeString(image, "image");
+    var email = new InboundMessage("monitor@example.com", "[]", "Database unavailable", null,
+        "<p>Connection <strong>refused</strong></p><img src='cid:graph-1' alt='Graph'>",
+        "unused");
+    var attachment = new InboundAttachment(email.getId(), "graph.png", "image/png", "graph-1",
+        "inline", image.toString(), Files.size(image));
+    var config = json.createObjectNode().put("url", baseUrl + "/hooks/generic");
+
+    new WebhookActionHandler(json, secrets, new ActionHttpClientFactory()).deliver(
+        new MessageData(email, List.of("ops@example.com"), List.of(attachment)), config);
+
+    JsonNode payload = json.readTree(bodies.get("/hooks/generic").get());
+    assertThat(payload.path("version").asText()).isEqualTo("2");
+    assertThat(payload.path("text").asText())
+        .contains("Connection **refused**").contains("cid:graph-1");
+    assertThat(payload.at("/attachments/0/contentId").asText()).isEqualTo("graph-1");
+    assertThat(payload.at("/attachments/0/inline").asBoolean()).isTrue();
+    assertThat(payload.at("/attachments/0/contentBase64").asText()).isEqualTo("aW1hZ2U=");
   }
 
   private MessageData message() {

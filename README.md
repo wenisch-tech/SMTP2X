@@ -16,10 +16,10 @@ The GitLab integration also supports recipient-based assignment: actions can ass
 ## Features
 
 - **SMTP gateway** — accepts SMTP transactions, including multiple `RCPT TO` recipients, parses MIME text/HTML messages and attachments, and never relays mail.
-- **Issue trackers** — creates templated issues in GitLab, GitHub, and Forgejo, including their self-hosted variants.
+- **Issue trackers** — creates templated issues in GitLab, GitHub, and Forgejo, using the email body as Markdown description and preserving inline images where the forge API supports uploads.
 - **Mattermost messages** — posts templated Markdown messages through an incoming webhook, with optional channel, username, and icon overrides.
 - **Recipient-based assignees** — combines SMTP recipients with default assignee email addresses; resolves mappings before exact GitLab email lookup; deduplicates GitLab user IDs; creates the issue unassigned if none resolve.
-- **Webhooks** — delivers a JSON representation of the accepted message to HTTP endpoints, with configurable headers and bearer authentication.
+- **Webhooks** — delivers the body plus attachment MIME metadata and base64 content as JSON, with configurable headers and bearer authentication.
 - **Visual routing workspace** — explore SMTP → rules → actions on an interactive dashboard, select actions by name, and create actions directly inside a rule draft.
 - **Routing rules** — global and recipient-specific rules can filter on envelope sender and subject. Every matching rule contributes actions; the same action runs once per message.
 - **Durable delivery** — SMTP success is returned only after the message and delivery jobs are stored. Failed remote calls retry after 1, 5, 15, and 60 minutes.
@@ -111,6 +111,8 @@ The GitLab action needs:
 | GitLab base URL | `https://gitlab.com` or the root URL of a self-managed GitLab instance. |
 | Project | Numeric project ID or project path such as `platform/alerts`. |
 | Access token | A GitLab token authorized to create issues in that project. It is encrypted before storage. |
+| Title and description templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
+| Upload and embed attachments | Uploads files through GitLab's project Markdown-upload API and replaces inline `cid:` image references. |
 | Use recipient as assignee | Adds all accepted SMTP envelope recipients to the assignee lookup. It does not use `To` or `Cc` message headers. |
 | Default assignee emails | Adds these addresses for every matching message, whether or not recipient assignment is enabled. |
 | Email mappings | Optional JSON map from email address to numeric GitLab user ID, for example `{"oncall@example.com": 42}`. |
@@ -142,6 +144,8 @@ Choose **GitHub issue** when creating an action. Configure:
 
 SMTP2X calls GitHub's versioned `POST /repos/{owner}/{repo}/issues` API. A rejected configuration is recorded as a permanent delivery failure; rate limits and server failures use the normal retry schedule. See [GitHub's create-issue API documentation](https://docs.github.com/en/rest/issues/issues#create-an-issue).
 
+GitHub's issue REST API has no supported file-upload field. SMTP2X therefore adds an attachment note to the issue body and records a delivery warning; it does not commit mail attachments into the repository.
+
 ## Configure Forgejo Issues
 
 Choose **Forgejo issue** when creating an action. Configure:
@@ -152,11 +156,16 @@ Choose **Forgejo issue** when creating an action. Configure:
 | Repository | Repository in `owner/repository` form. |
 | Access token | Forgejo access token with permission to write issues in the selected repository. It is encrypted before storage. |
 | Title and body templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
+| Upload and embed attachments | Attaches files to the created issue and updates inline `cid:` image references to their Forgejo download URLs. |
 | Label IDs | Numeric Forgejo label IDs, one per line. |
 | Assignees | Forgejo usernames, one per line. |
 | Auto-delete issue after | Optional duration such as `5m`, `10h`, or `30d`. The token must be allowed to delete the created issue. |
 
 SMTP2X calls `POST /api/v1/repos/{owner}/{repo}/issues` and authenticates through the HTTP `Authorization` header. Forgejo exposes the instance-specific OpenAPI reference under `/api/swagger` when Swagger is enabled. See the [Forgejo API guide](https://forgejo.org/docs/latest/user/api/) for authentication and instance API documentation.
+
+## Configure generic webhooks
+
+Generic webhooks receive an `application/json` payload with `version: "2"`. Its `text` field contains the preferred plain-text email body, or Markdown converted from HTML when no plain alternative exists. Each `attachments` item contains `filename`, `contentType`, `contentId`, `disposition`, `inline`, `size`, and `contentBase64`; consumers can use the content ID to resolve `cid:` references in the text. Custom payloads configured through the API continue to replace this default payload.
 
 ## Configure Mattermost Messages
 

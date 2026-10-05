@@ -173,6 +173,10 @@ function actionDialog(onSaved) {
       case "GITLAB_ISSUE":
         set("baseUrl", c.baseUrl);
         set("project", c.project);
+        set("gitlabTitleTemplate", c.titleTemplate);
+        set("gitlabDescriptionTemplate", c.descriptionTemplate);
+        field("gitlabUploadAttachments").checked =
+          c.uploadAttachments !== false;
         field("useRecipient").checked = Boolean(c.useRecipient);
         setLines("defaults", c.defaultAssigneeEmails);
         if (c.assigneeEmailMappings !== undefined)
@@ -196,6 +200,8 @@ function actionDialog(onSaved) {
         set("forgejoRepository", c.repository);
         set("forgejoTitleTemplate", c.titleTemplate);
         set("forgejoBodyTemplate", c.bodyTemplate);
+        field("forgejoUploadAttachments").checked =
+          c.uploadAttachments !== false;
         setLines("forgejoLabelIds", c.labelIds?.map(String));
         setLines("forgejoAssignees", c.assignees);
         set("forgejoAutoDeleteAfter", c.autoDeleteAfter);
@@ -225,6 +231,9 @@ function actionDialog(onSaved) {
           baseUrl: field("baseUrl").value,
           project: field("project").value,
           accessToken: field("accessToken").value,
+          titleTemplate: field("gitlabTitleTemplate").value,
+          descriptionTemplate: field("gitlabDescriptionTemplate").value,
+          uploadAttachments: field("gitlabUploadAttachments").checked,
           useRecipient: field("useRecipient").checked,
           defaultAssigneeEmails: lines("defaults"),
           assigneeEmailMappings: JSON.parse(field("mappings").value || "{}"),
@@ -256,6 +265,7 @@ function actionDialog(onSaved) {
           accessToken: field("forgejoAccessToken").value,
           titleTemplate: field("forgejoTitleTemplate").value,
           bodyTemplate: field("forgejoBodyTemplate").value,
+          uploadAttachments: field("forgejoUploadAttachments").checked,
           labelIds,
           assignees: lines("forgejoAssignees"),
           autoDeleteAfter: field("forgejoAutoDeleteAfter").value.trim(),

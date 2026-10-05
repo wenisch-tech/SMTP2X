@@ -26,8 +26,9 @@ public class MattermostMessageActionHandler implements ActionHandler {
   public DeliveryResult deliver(MessageData data, JsonNode config) throws DeliveryException {
     String url = secrets.decrypt(required(config, "webhookUrl"));
     ObjectNode message = json.createObjectNode();
-    message.put("text", MessageTemplate.render(
-        config.path("textTemplate").asText("### {{subject}}\n\n{{body}}\n\n_From: {{from}}_"), data));
+    String text = MessageTemplate.render(
+        config.path("textTemplate").asText("### {{subject}}\n\n{{body}}\n\n_From: {{from}}_"), data);
+    message.put("text", AttachmentMarkdown.render(text, data.attachments(), java.util.Map.of()));
     copy(config, message, "channel");
     copy(config, message, "username");
     copy(config, message, "icon_url", "iconUrl");
@@ -41,7 +42,9 @@ public class MattermostMessageActionHandler implements ActionHandler {
             throw new DeliveryException("Mattermost returned " + result.getStatusCode(), retry);
           });
       // Incoming webhook URLs contain their credential, so never persist one as a remote link.
-      return new DeliveryResult("", "Mattermost message posted", "");
+      String warnings = data.attachments().isEmpty() ? ""
+          : "Mattermost incoming webhooks cannot upload attachments; attachment notes were added";
+      return new DeliveryResult("", "Mattermost message posted", warnings);
     } catch (DeliveryException e) {
       throw e;
     } catch (Exception e) {

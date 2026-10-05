@@ -6,15 +6,20 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import tech.wenisch.smtp2x.config.Smtp2xProperties;
+import tech.wenisch.smtp2x.domain.InboundAttachment;
 import tech.wenisch.smtp2x.domain.InboundMessage;
 
 class GitLabActionHandlerTest {
+  @TempDir Path temporaryDirectory;
   private HttpServer server;
   private final AtomicReference<String> issue = new AtomicReference<>();
   private final AtomicReference<String> deleted = new AtomicReference<>();
@@ -26,6 +31,9 @@ class GitLabActionHandlerTest {
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext("/api/v4/users", this::users);
     server.createContext("/api/v4/projects/group/project/issues", this::issue);
+    server.createContext("/api/v4/projects/group/project/uploads",
+        request -> respond(request, 201,
+            "{\"url\":\"/uploads/secret/graph.png\",\"markdown\":\"![graph](/uploads/secret/graph.png)\"}"));
     server.start();
     var properties = new Smtp2xProperties("", null,
         new Smtp2xProperties.Crypto("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), null, null);
@@ -55,6 +63,25 @@ class GitLabActionHandlerTest {
 
     handler.cleanup(config, result.cleanupReference());
     assertThat(deleted.get()).isEqualTo("DELETE /api/v4/projects/group%2Fproject/issues/7");
+  }
+
+  @Test void inlineImageIsUploadedAndItsCidIsReplacedInDescription() throws Exception {
+    Path image = temporaryDirectory.resolve("graph.png");
+    Files.writeString(image, "image");
+    var config = json.createObjectNode();
+    config.put("baseUrl", "http://localhost:" + server.getAddress().getPort());
+    config.put("project", "group/project");
+    config.put("accessToken", "token");
+    var message = new InboundMessage("sender@example.com", "[]", "Alert",
+        "Details ![graph](cid:graph-1)", null, "unused");
+    var attachment = new InboundAttachment(message.getId(), "graph.png", "image/png", "graph-1",
+        "inline", image.toString(), Files.size(image));
+
+    var result = handler.deliver(new MessageData(message, List.of("ops@example.com"),
+        List.of(attachment)), config);
+
+    assertThat(result.warnings()).isEmpty();
+    assertThat(issue.get()).contains("/uploads/secret/graph.png").doesNotContain("cid:graph-1");
   }
 
   private void users(HttpExchange request) throws java.io.IOException {
