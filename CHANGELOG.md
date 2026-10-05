@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.5.1 - 2026-10-05
+
+### [0.5.1](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.0...v0.5.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* updated sidebar components ([3a3e4bd](https://github.com/wenisch-tech/SMTP2X/commit/3a3e4bd038e589455372b4b3ebb1dc35160264bb))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.1`
+
+
 ## v0.5.0 - 2026-10-05
 
 ## [0.5.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.4.0...v0.5.0) (2026-10-05)
