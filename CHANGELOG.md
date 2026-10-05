@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.0 - 2026-10-05
+
+## [0.5.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.4.0...v0.5.0) (2026-10-05)
+
+
+### Features
+
+* Added support for message body ([2810de0](https://github.com/wenisch-tech/SMTP2X/commit/2810de07e7a97613dff53feb94138261075f42d3))
+
+
+### Bug Fixes
+
+* fixed assignee handling for gitlab ([f72fdae](https://github.com/wenisch-tech/SMTP2X/commit/f72fdaed1fe3a4d718c4ae5c3b149565f3207f15))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.0`
+
+
 ## v0.4.0 - 2026-10-01
 
 ## [0.4.0](https://github.com/wenisch-tech/SMTP2X/compare/v0.3.1...v0.4.0) (2026-10-01)
