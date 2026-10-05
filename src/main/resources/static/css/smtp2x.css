@@ -143,17 +143,19 @@ button:disabled {
 .workspace-label {
   font-size: 11px;
   color: #adbed5;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .account {
   font-size: 11px;
-  overflow-wrap: anywhere;
   color: #92a5c0;
   border-top: 1px solid #ffffff12;
-  padding-top: 18px;
+  padding-top: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .signout {
   color: #c3cfe0;
@@ -161,6 +163,40 @@ button:disabled {
   border: 0;
   padding: 9px 0;
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.signout:hover {
+  color: #fff;
+}
+.signout .icon {
+  width: 15px;
+  height: 15px;
+}
+.side-links {
+  border-top: 1px solid #ffffff12;
+  padding-top: 13px;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.side-links a {
+  color: #8295b1;
+  font-size: 10px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.side-links a:hover {
+  color: #dbe5f5;
+}
+.side-links .icon {
+  width: 13px;
+  height: 13px;
 }
 .main {
   padding: 35px 38px 40px;

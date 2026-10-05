@@ -199,6 +199,39 @@ test("viewer access, keyboard flow selection, and mobile layouts", async ({
   page,
 }) => {
   await login(page, "viewer@example.com");
+  await expect(page.locator(".workspace-label")).toHaveText("Online");
+  await expect(
+    page.getByRole("link", { name: "AGPL-3.0 License" }),
+  ).toHaveAttribute("href", "https://www.gnu.org/licenses/agpl-3.0.html");
+  await expect(
+    page.getByRole("link", { name: "SMTP2X GitHub repository" }),
+  ).toHaveAttribute("href", "https://github.com/wenisch-tech/SMTP2X");
+  await expect(page.locator(".signout use")).toHaveAttribute(
+    "href",
+    "/css/icons.svg#logout",
+  );
+  const account = page.locator(".account");
+  await account.evaluate(
+    (element) =>
+      (element.textContent =
+        "a-very-long-account-name-that-must-stay-on-one-line@example.com"),
+  );
+  expect(
+    await account.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        overflow: style.overflowX,
+        textOverflow: style.textOverflow,
+        whiteSpace: style.whiteSpace,
+        oneLine: element.scrollHeight === element.clientHeight,
+      };
+    }),
+  ).toEqual({
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    oneLine: true,
+  });
   await expect(
     page.getByRole("link", { name: "Administration", exact: true }),
   ).toHaveCount(0);
