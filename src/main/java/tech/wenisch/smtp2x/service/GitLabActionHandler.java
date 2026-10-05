@@ -43,21 +43,26 @@ public class GitLabActionHandler implements CleanupActionHandler {
     try {
       RestClient client = clients.forConfiguration(config);
       String base = required(config, "baseUrl").replaceAll("/$", "");
+      String api = projectApi(base, required(config, "project"));
       String token = secrets.decrypt(required(config, "accessToken"));
       List<String> requested = new ArrayList<>();
       if (config.path("useRecipient").asBoolean(false)) requested.addAll(recipients);
       config.path("defaultAssigneeEmails").forEach(node -> requested.add(node.asText()));
       Map<String, Long> mappings = mappings(config);
       List<AssigneeResolution> values = new ArrayList<>();
-      for (String email : requested.stream().filter(value -> value != null && !value.isBlank())
+      for (String identifier : requested.stream().filter(value -> value != null && !value.isBlank())
           .map(AppUser::normalize).distinct().toList()) {
-        Long id = mappings.get(email);
-        if (id != null) values.add(new AssigneeResolution(email, id, "mapping", "resolved"));
+        Long id = mappings.get(identifier);
+        if (id != null) {
+          values.add(new AssigneeResolution(identifier, id, "mapping", "resolved"));
+        }
         else {
           List<String> warnings = new ArrayList<>();
-          id = lookupUser(client, base, token, email, warnings);
-          values.add(new AssigneeResolution(email, id, "lookup",
-              id == null ? String.join("; ", warnings) : "resolved"));
+          ResolvedAssignee assignee = lookupAssignee(client, base, api, token, identifier, warnings);
+          values.add(new AssigneeResolution(identifier,
+              assignee == null ? null : assignee.id(),
+              assignee == null ? "lookup" : assignee.source(),
+              assignee == null ? String.join("; ", warnings) : "resolved"));
         }
       }
       return new AssigneePreview(values);
@@ -78,8 +83,7 @@ public class GitLabActionHandler implements CleanupActionHandler {
       String base = required(config, "baseUrl").replaceAll("/$", "");
       String project = required(config, "project");
       String token = secrets.decrypt(required(config, "accessToken"));
-      String api = base + "/api/v4/projects/"
-          + URLEncoder.encode(project, StandardCharsets.UTF_8).replace("+", "%20");
+      String api = projectApi(base, project);
       List<String> requestedRaw = new ArrayList<>();
       if (config.path("useRecipient").asBoolean(false)) requestedRaw.addAll(data.recipients());
       config.path("defaultAssigneeEmails").forEach(node -> requestedRaw.add(node.asText()));
@@ -89,9 +93,13 @@ public class GitLabActionHandler implements CleanupActionHandler {
       List<Long> resolved = new ArrayList<>();
       List<String> warnings = new ArrayList<>();
       Map<String, Long> mappings = mappings(config);
-      for (String email : requested) {
-        Long id = mappings.get(email);
-        if (id == null) id = lookupUser(client, base, token, email, warnings);
+      for (String identifier : requested) {
+        Long id = mappings.get(identifier);
+        if (id == null) {
+          ResolvedAssignee assignee = lookupAssignee(
+              client, base, api, token, identifier, warnings);
+          id = assignee == null ? null : assignee.id();
+        }
         if (id != null && !resolved.contains(id)) resolved.add(id);
       }
 
@@ -173,33 +181,114 @@ public class GitLabActionHandler implements CleanupActionHandler {
     return result;
   }
 
-  private Long lookupUser(RestClient client, String base, String token, String email,
-      List<String> warnings) throws DeliveryException {
+  private ResolvedAssignee lookupAssignee(RestClient client, String base, String api,
+      String token, String identifier, List<String> warnings) throws DeliveryException {
+    ResolvedAssignee member = lookupProjectMember(client, api, token, identifier);
+    if (member != null) return member;
+
+    ResolvedAssignee user = lookupRegularUser(client, base, token, identifier);
+    if (user != null) return user;
+
+    warnings.add("No assignable GitLab project member resolved for " + identifier);
+    return null;
+  }
+
+  private ResolvedAssignee lookupProjectMember(RestClient client, String api, String token,
+      String identifier) throws DeliveryException {
+    String lookup = lookupValue(identifier);
+    JsonNode members = getUsers(client, api + "/members/all?query=" + encode(lookup)
+        + "&per_page=100", token, "project member");
+    if (members == null || !members.isArray()) return null;
+
+    List<JsonNode> active = new ArrayList<>();
+    for (JsonNode member : members) {
+      if (validUser(member)) active.add(member);
+    }
+    if (isUsername(identifier)) {
+      for (JsonNode member : active) {
+        if (lookup.equalsIgnoreCase(member.path("username").asText("")))
+          return new ResolvedAssignee(member.path("id").asLong(), "project-member");
+      }
+      return null;
+    }
+    for (JsonNode member : active) {
+      if (emailMatches(member, lookup))
+        return new ResolvedAssignee(member.path("id").asLong(), "project-member");
+    }
+    // GitLab can filter project members by a private email without returning that email.
+    // Only accept the result when the server narrowed it to one unambiguous member.
+    return active.size() == 1
+        ? new ResolvedAssignee(active.get(0).path("id").asLong(), "project-member") : null;
+  }
+
+  private ResolvedAssignee lookupRegularUser(RestClient client, String base, String token,
+      String identifier) throws DeliveryException {
+    String lookup = lookupValue(identifier);
+    String parameter = isUsername(identifier) ? "username=" : "search=";
+    JsonNode users = getUsers(client,
+        base + "/api/v4/users?" + parameter + encode(lookup) + "&per_page=100",
+        token, "user");
+    if (users == null || !users.isArray()) return null;
+    for (JsonNode user : users) {
+      if (!validUser(user)) continue;
+      if (isUsername(identifier)
+          && lookup.equalsIgnoreCase(user.path("username").asText("")))
+        return new ResolvedAssignee(user.path("id").asLong(), "username");
+      if (!isUsername(identifier) && emailMatches(user, lookup))
+        return new ResolvedAssignee(user.path("id").asLong(), "public-email");
+    }
+    return null;
+  }
+
+  private JsonNode getUsers(RestClient client, String url, String token, String lookupType)
+      throws DeliveryException {
     try {
-      JsonNode list = client.get().uri(URI.create(base + "/api/v4/users?search="
-              + URLEncoder.encode(email, StandardCharsets.UTF_8)))
+      return client.get().uri(URI.create(url))
           .header("PRIVATE-TOKEN", token).exchange((request, response) -> {
             if (response.getStatusCode().is2xxSuccessful())
               return json.readTree(response.getBody());
             if (response.getStatusCode().value() == 429
                 || response.getStatusCode().is5xxServerError())
-              throw new DeliveryException("GitLab lookup returned " + response.getStatusCode(), true);
+              throw new DeliveryException(
+                  "GitLab " + lookupType + " lookup returned " + response.getStatusCode(), true);
             return null;
           });
-      if (list != null) {
-        for (JsonNode user : list) {
-          if (email.equalsIgnoreCase(user.path("public_email").asText("")))
-            return user.path("id").asLong();
-        }
-      }
-      warnings.add("No GitLab user resolved for " + email);
-      return null;
     } catch (DeliveryException e) {
       throw e;
     } catch (Exception e) {
-      throw new DeliveryException("GitLab user lookup failed", true, e);
+      throw new DeliveryException("GitLab " + lookupType + " lookup failed", true, e);
     }
   }
+
+  private boolean validUser(JsonNode user) {
+    return user.path("id").canConvertToLong()
+        && user.path("id").asLong() > 0
+        && (user.path("state").isMissingNode()
+            || "active".equalsIgnoreCase(user.path("state").asText()));
+  }
+
+  private boolean emailMatches(JsonNode user, String email) {
+    return email.equalsIgnoreCase(user.path("email").asText(""))
+        || email.equalsIgnoreCase(user.path("public_email").asText(""));
+  }
+
+  private boolean isUsername(String identifier) {
+    return identifier.startsWith("@") || !identifier.contains("@");
+  }
+
+  private String lookupValue(String identifier) {
+    return identifier.startsWith("@") ? identifier.substring(1) : identifier;
+  }
+
+  private String projectApi(String base, String project) {
+    return base + "/api/v4/projects/" + encode(project);
+  }
+
+  private String encode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+  }
+
+  private record ResolvedAssignee(long id, String source) {}
 
   private JsonNode postJson(RestClient client, String url, String token, ObjectNode body)
       throws DeliveryException {

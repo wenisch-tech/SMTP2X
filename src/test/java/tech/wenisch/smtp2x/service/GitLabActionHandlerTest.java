@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,8 @@ class GitLabActionHandlerTest {
   private HttpServer server;
   private final AtomicReference<String> issue = new AtomicReference<>();
   private final AtomicReference<String> deleted = new AtomicReference<>();
+  private final AtomicReference<String> memberQueries = new AtomicReference<>("");
+  private final AtomicInteger regularUserLookups = new AtomicInteger();
   private GitLabActionHandler handler;
   private ObjectMapper json;
 
@@ -30,6 +33,7 @@ class GitLabActionHandlerTest {
     json = new ObjectMapper();
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext("/api/v4/users", this::users);
+    server.createContext("/api/v4/projects/group/project/members/all", this::members);
     server.createContext("/api/v4/projects/group/project/issues", this::issue);
     server.createContext("/api/v4/projects/group/project/uploads",
         request -> respond(request, 201,
@@ -60,9 +64,41 @@ class GitLabActionHandlerTest {
     assertThat(result.cleanupReference()).isEqualTo("7");
     assertThat(issue.get()).contains("\"assignee_ids\":[101,202]");
     assertThat(issue.get()).contains("\"title\":\"Alert\"").contains("\"description\":\"Details\"");
+    assertThat(memberQueries.get()).contains("alice%40example.com", "support%40example.com");
+    assertThat(regularUserLookups.get()).isZero();
 
     handler.cleanup(config, result.cleanupReference());
     assertThat(deleted.get()).isEqualTo("DELETE /api/v4/projects/group%2Fproject/issues/7");
+  }
+
+  @Test void usernameHandleIsResolvedAsAnExactProjectMember() {
+    var config = json.createObjectNode();
+    config.put("baseUrl", "http://localhost:" + server.getAddress().getPort());
+    config.put("project", "group/project");
+    config.put("accessToken", "token");
+    config.putArray("defaultAssigneeEmails").add("@alice");
+    var message = new InboundMessage("sender@example.com", "[]", "Alert", "Details", null,
+        "unused");
+
+    handler.deliver(new MessageData(message, List.of(), List.of()), config);
+
+    assertThat(issue.get()).contains("\"assignee_ids\":[101]");
+    assertThat(memberQueries.get()).contains("query=alice");
+    assertThat(regularUserLookups.get()).isZero();
+  }
+
+  @Test void assigneePreviewUsesTheSameProjectMemberResolution() {
+    var config = json.createObjectNode();
+    config.put("baseUrl", "http://localhost:" + server.getAddress().getPort());
+    config.put("project", "group/project");
+    config.put("accessToken", "token");
+    config.putArray("defaultAssigneeEmails").add("@alice");
+
+    var result = handler.previewAssignees(config, List.of());
+
+    assertThat(result.resolutions()).containsExactly(
+        new GitLabActionHandler.AssigneeResolution("@alice", 101L, "project-member", "resolved"));
+    assertThat(regularUserLookups.get()).isZero();
   }
 
   @Test void inlineImageIsUploadedAndItsCidIsReplacedInDescription() throws Exception {
@@ -85,9 +121,23 @@ class GitLabActionHandlerTest {
   }
 
   private void users(HttpExchange request) throws java.io.IOException {
+    regularUserLookups.incrementAndGet();
     String query = request.getRequestURI().getRawQuery();
     String body = query.contains("alice") ? "[{\"id\":101,\"public_email\":\"alice@example.com\"}]"
         : "[{\"id\":202,\"public_email\":\"support@example.com\"}]";
+    respond(request, 200, body);
+  }
+  private void members(HttpExchange request) throws java.io.IOException {
+    String query = request.getRequestURI().getRawQuery();
+    memberQueries.updateAndGet(value -> value + " " + query);
+    String body;
+    if (query.contains("alice")) {
+      body = "[{\"id\":101,\"username\":\"alice\",\"state\":\"active\"}]";
+    } else if (query.contains("support")) {
+      body = "[{\"id\":202,\"username\":\"support\",\"state\":\"active\"}]";
+    } else {
+      body = "[]";
+    }
     respond(request, 200, body);
   }
   private void issue(HttpExchange request) throws java.io.IOException {

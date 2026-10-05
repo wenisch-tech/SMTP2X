@@ -97,10 +97,10 @@ Recipients: {{recipients}}</textarea></label
             ><input type="checkbox" name="useRecipient" /> Use recipient as
             assignee</label
           ><label
-            >Default assignee emails <span class="optional">one per line</span
+            >Default assignees <span class="optional">email or @username, one per line</span
             ><textarea name="defaults" rows="2"></textarea></label
           ><label
-            >Email mappings <span class="optional">JSON object</span
+            >Assignee mappings <span class="optional">JSON object</span
             ><textarea name="mappings" rows="2">{}</textarea></label
           ><label
             >Auto-delete issue after <span class="optional">optional</span
@@ -116,6 +116,10 @@ Recipients: {{recipients}}</textarea></label
           <button type="button" class="btn secondary" id="preview-assignees">
             Validate assignees
           </button>
+          <p class="muted small">
+            Assignees are resolved from visible members of this project. A mapping
+            can associate an email or @username with a numeric GitLab user ID.
+          </p>
           <p id="preview-result" class="muted small" role="status"></p>
         </fieldset>
         <fieldset data-action-fields="GITHUB_ISSUE" hidden disabled>

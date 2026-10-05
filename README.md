@@ -9,7 +9,7 @@
 
 SMTP2X is a self-hosted gateway for applications that can only send SMTP notifications, while their users need GitLab, GitHub, or Forgejo issues, Mattermost messages, webhooks, and an auditable delivery history instead of another email inbox. It accepts messages over SMTP, evaluates shared routing rules, stores a durable copy, and delivers each selected action in the background.
 
-The GitLab integration also supports recipient-based assignment: actions can assign issues from SMTP envelope recipients, configured default assignees, or explicit email-to-GitLab-user mappings.
+The GitLab integration also supports recipient-based assignment: actions can assign issues from SMTP envelope recipients, configured default assignees, or explicit identifier-to-GitLab-user mappings.
 
 ![SMTP2X dashboard showing configured SMTP routes, shared actions, and delivery totals](docs/smtp2x-dashboard.png)
 
@@ -18,7 +18,7 @@ The GitLab integration also supports recipient-based assignment: actions can ass
 - **SMTP gateway** — accepts SMTP transactions, including multiple `RCPT TO` recipients, parses MIME text/HTML messages and attachments, and never relays mail.
 - **Issue trackers** — creates templated issues in GitLab, GitHub, and Forgejo, using the email body as Markdown description and preserving inline images where the forge API supports uploads.
 - **Mattermost messages** — posts templated Markdown messages through an incoming webhook, with optional channel, username, and icon overrides.
-- **Recipient-based assignees** — combines SMTP recipients with default assignee email addresses; resolves mappings before exact GitLab email lookup; deduplicates GitLab user IDs; creates the issue unassigned if none resolve.
+- **Recipient-based assignees** — combines SMTP recipients with default assignee emails or usernames; resolves project members with normal-user APIs; deduplicates GitLab user IDs; creates the issue unassigned if none resolve.
 - **Webhooks** — delivers the body plus attachment MIME metadata and base64 content as JSON, with configurable headers and bearer authentication.
 - **Visual routing workspace** — explore SMTP → rules → actions on an interactive dashboard, select actions by name, and create actions directly inside a rule draft.
 - **Routing rules** — global and recipient-specific rules can filter on envelope sender and subject. Every matching rule contributes actions; the same action runs once per message.
@@ -114,13 +114,13 @@ The GitLab action needs:
 | Title and description templates | Markdown-capable templates supporting `{{subject}}`, `{{body}}`, `{{from}}`, and `{{recipients}}`. |
 | Upload and embed attachments | Uploads files through GitLab's project Markdown-upload API and replaces inline `cid:` image references. |
 | Use recipient as assignee | Adds all accepted SMTP envelope recipients to the assignee lookup. It does not use `To` or `Cc` message headers. |
-| Default assignee emails | Adds these addresses for every matching message, whether or not recipient assignment is enabled. |
-| Email mappings | Optional JSON map from email address to numeric GitLab user ID, for example `{"oncall@example.com": 42}`. |
+| Default assignees | Adds an email address or exact `@username` for every matching message, whether or not recipient assignment is enabled. |
+| Assignee mappings | Optional JSON map from an email address or `@username` to a numeric GitLab user ID, for example `{"oncall@example.com": 42, "@alice": 17}`. |
 | Auto-delete issue after | Optional duration such as `5m`, `10h`, or `30d`. The token must be allowed to delete the created issue. |
 
-SMTP2X uses mappings first, then performs an exact public-email lookup. Recipient-derived and default assignees are combined and deduplicated. GitLab Premium and Ultimate support the resulting `assignee_ids` list. If no configured address resolves to an assignable GitLab user, SMTP2X still creates the issue without an assignee and records a delivery warning.
+SMTP2X uses mappings first, then searches the configured project's visible members through `GET /projects/:id/members/all`. An `@username` is matched exactly. For email addresses, an exact returned email is preferred; when GitLab keeps the email private, SMTP2X accepts the result only if GitLab's project-member query returns one unambiguous active member. Recipient-derived and default assignees are combined and deduplicated. GitLab Premium and Ultimate support the resulting `assignee_ids` list. If no configured identifier resolves to an assignable GitLab user, SMTP2X still creates the issue without an assignee and records a delivery warning.
 
-Private GitLab email addresses are not generally visible to ordinary project tokens. Use an explicit mapping when a public-email lookup cannot find a user. The **Validate assignees** button previews mappings and lookups without creating an issue.
+The lookup uses APIs available to a normal authenticated user and does not query GitLab administrator endpoints. If GitLab cannot uniquely resolve a private email for the project, use an exact `@username` or an explicit numeric mapping. The **Validate assignees** button previews mappings and lookups without creating an issue.
 
 ### A typical route
 
