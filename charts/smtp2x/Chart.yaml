@@ -8,4 +8,5 @@ home: https://github.com/wenisch-tech/SMTP2X
 sources: ['https://github.com/wenisch-tech/SMTP2X']
 annotations:
   artifacthub.io/license: AGPL-3.0
-  org.opencontainers.image.source: https://github.com/wenisch-tech/helm-charts
+  # Makes the GHCR OCI package display SMTP2X as its source repository.
+  org.opencontainers.image.source: https://github.com/wenisch-tech/SMTP2X

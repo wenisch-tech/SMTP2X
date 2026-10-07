@@ -113,6 +113,26 @@ jobs:
             release/*-sbom.json
             release/*-sbom.xml
 
+      # HELM_CHARTS_TOKEN must be a fine-grained PAT (or GitHub App token) with
+      # Contents: write access to wenisch-tech/helm-charts. GITHUB_TOKEN is
+      # scoped to SMTP2X and cannot commit to that separate repository.
+      - name: Publish Helm chart archive to charts repository
+        shell: bash
+        env:
+          HELM_CHARTS_TOKEN: ${{ secrets.HELM_CHARTS_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          : "${HELM_CHARTS_TOKEN:?Set HELM_CHARTS_TOKEN with Contents: write access to wenisch-tech/helm-charts}"
+          git clone "https://x-access-token:${HELM_CHARTS_TOKEN}@github.com/wenisch-tech/helm-charts.git" charts-repo
+          install -D -m 0644 "release/smtp2x-${VERSION}.tgz" "charts-repo/smtp2x/smtp2x-${VERSION}.tgz"
+          install -D -m 0644 "release/smtp2x-${VERSION}.tgz.cosign.bundle" "charts-repo/smtp2x/smtp2x-${VERSION}.tgz.cosign.bundle"
+          git -C charts-repo config user.name "github-actions[bot]"
+          git -C charts-repo config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C charts-repo add "smtp2x/smtp2x-${VERSION}.tgz" "smtp2x/smtp2x-${VERSION}.tgz.cosign.bundle"
+          git -C charts-repo commit -m "Add smtp2x Helm chart ${VERSION}" || exit 0
+          git -C charts-repo push origin HEAD:main
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
