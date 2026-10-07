@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.3 - 2026-10-07
+
+### [0.5.3](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.2...v0.5.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* fixed upload of helm chart to repo ([f15b1ae](https://github.com/wenisch-tech/SMTP2X/commit/f15b1ae1fba1b6722b797e2bb629f00c3cca8583))
+* updated helm packaging ([79571a3](https://github.com/wenisch-tech/SMTP2X/commit/79571a346caad2375481323a808b87b1b76f6ac7))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.3`
+
+
 ## v0.5.2 - 2026-10-05
 
 ### [0.5.2](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.1...v0.5.2) (2026-10-05)
