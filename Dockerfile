@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.27
+# syntax=docker/dockerfile:1.28
 # Chainguard JRE is the runtime image. The small scaffold stage creates the
 # writable data directory used by the application.
 FROM cgr.dev/chainguard/wolfi-base:latest AS scaffold
