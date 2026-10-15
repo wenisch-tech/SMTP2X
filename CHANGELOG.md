@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.5.4 - 2026-10-15
+
+### [0.5.4](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.3...v0.5.4) (2026-10-15)
+
+
+### Bug Fixes
+
+* **deps:** update non-major dependencies ([51c4121](https://github.com/wenisch-tech/SMTP2X/commit/51c4121617d5398767f676ad796f8ec187e73608))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.4`
+
+
 ## v0.5.3 - 2026-10-07
 
 ### [0.5.3](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.2...v0.5.3) (2026-10-07)
