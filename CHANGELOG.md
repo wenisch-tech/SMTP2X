@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.5.5 - 2026-10-19
+
+### [0.5.5](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.4...v0.5.5) (2026-10-19)
+
+
+### Bug Fixes
+
+* **deps:** update dependency com.fasterxml.jackson.core:jackson-databind to v2.22.4 ([c5dfe7a](https://github.com/wenisch-tech/SMTP2X/commit/c5dfe7a6fa6f30d12a1253a5a4959aa122d29009))
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.5`
+
+
 ## v0.5.4 - 2026-10-15
 
 ### [0.5.4](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.3...v0.5.4) (2026-10-15)
