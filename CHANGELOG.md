@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.6 - 2026-10-26
+
+### [0.5.6](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.5...v0.5.6) (2026-10-26)
+
+
+
+Docker image: `ghcr.io/wenisch-tech/smtp2x:0.5.6`
+
+
 ## v0.5.5 - 2026-10-19
 
 ### [0.5.5](https://github.com/wenisch-tech/SMTP2X/compare/v0.5.4...v0.5.5) (2026-10-19)
