@@ -8,6 +8,6 @@
     "prescreenshots": "mvn -q test-compile dependency:build-classpath -Dmdep.outputFile=target/ui-classpath.txt"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "^1.65.0"
   }
 }
